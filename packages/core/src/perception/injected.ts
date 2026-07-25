@@ -99,6 +99,25 @@ export const PERCEPTION_SCRIPT = `
     for (var i = 0; i < candidates.length; i++) {
       if (candidates[i]) return truncate(candidates[i], 160);
     }
+
+    // Icon-only controls: the label often sits on a nested image or span rather
+    // than on the control itself. Very common for upvote arrows, close buttons
+    // and toolbar icons, all of which are useless to the agent unnamed.
+    var inner = el.querySelector ? el.querySelector('[aria-label],[title],img[alt]') : null;
+    if (inner) {
+      var nested = clean(
+        inner.getAttribute('aria-label') || inner.getAttribute('title') || inner.getAttribute('alt')
+      );
+      if (nested) return truncate(nested, 160);
+    }
+
+    // Last resort for links: the destination says something about the target.
+    if (tag === 'a') {
+      var href = clean(el.getAttribute('href'));
+      if (href && href.indexOf('javascript:') !== 0 && href !== '#') {
+        return truncate('→ ' + href.replace(/^https?:\\/\\//, '').slice(0, 60), 70);
+      }
+    }
     return '';
   }
 
@@ -286,7 +305,7 @@ export const PERCEPTION_SCRIPT = `
     var roots = [];
     var truncated = false;
 
-    function add(el, role, parentChildren) {
+    function add(el, role, parentChildren, nameOverride) {
       if (nodes.length >= maxNodes) { truncated = true; return null; }
       var rect = el.getBoundingClientRect();
       var idx = nodes.length;
@@ -298,7 +317,7 @@ export const PERCEPTION_SCRIPT = `
       var node = {
         ref: ref,
         role: role,
-        name: accessibleName(el),
+        name: nameOverride !== undefined ? nameOverride : accessibleName(el),
         box: {
           x: Math.round(rect.left), y: Math.round(rect.top),
           w: Math.round(rect.width), h: Math.round(rect.height)
@@ -363,10 +382,12 @@ export const PERCEPTION_SCRIPT = `
           idx = add(el, role, parentChildren);
         } else if (role === 'dialog' || role === 'form' || role === 'table') {
           idx = add(el, role, parentChildren);
-        } else if (isLeafText(el)) {
-          // Text that carries meaning but is not a control.
-          var txt = truncate(el.innerText, 200);
-          if (txt.length > 1) idx = add(el, 'text', parentChildren);
+        } else {
+          // Text that carries meaning but is not a control. Only the element's
+          // *own* text counts: using innerText here would swallow every child's
+          // label too, turning a nav bar into one long duplicated line.
+          var own = ownText(el);
+          if (own) idx = add(el, 'text', parentChildren, own);
         }
       }
 
@@ -384,15 +405,23 @@ export const PERCEPTION_SCRIPT = `
       }
     }
 
-    /** True when the element's text is its own, not merely inherited from kids. */
-    function isLeafText(el) {
-      if (!el.childNodes || !el.childNodes.length) return false;
+    /**
+     * The text belonging to this element directly — its own text nodes, not
+     * anything its children contribute. Returns '' when there is nothing worth
+     * reporting, which includes separators and decoration like "|", "·" or "—"
+     * that carry no meaning once the structure is already visible.
+     */
+    function ownText(el) {
+      if (!el.childNodes || !el.childNodes.length) return '';
       var own = '';
       for (var i = 0; i < el.childNodes.length; i++) {
         var c = el.childNodes[i];
-        if (c.nodeType === 3) own += c.nodeValue;
+        if (c.nodeType === 3) own += c.nodeValue + ' ';
       }
-      return clean(own).length > 1;
+      own = clean(own);
+      if (own.length < 2) return '';
+      if (!/[a-z0-9]/i.test(own)) return '';
+      return truncate(own, 200);
     }
 
     if (document.body) walk(document.body, null, 0);

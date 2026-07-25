@@ -41,12 +41,20 @@ export function serializePageMap(map: PageMap, options: SerializeOptions = {}): 
 
   let dropped = 0;
 
-  const render = (index: number, depth: number): void => {
+  /**
+   * `enclosing` is the name of the nearest rendered ancestor. Text nested
+   * inside a control almost always restates that control's label — the text
+   * inside `<a>Reset password</a>` is the anchor's own name — so carrying the
+   * ancestor down lets those be dropped.
+   */
+  const render = (index: number, depth: number, enclosing: string): void => {
     if (lines.length >= maxLines) { dropped++; return; }
     const node = map.nodes[index];
     if (!node) return;
 
-    const keep = shouldRender(node, { viewportOnly, includeText });
+    const keep =
+      shouldRender(node, { viewportOnly, includeText }) &&
+      !(node.role === 'text' && isRedundantText(map, node, enclosing));
     let nextDepth = depth;
 
     if (keep) {
@@ -54,10 +62,11 @@ export function serializePageMap(map: PageMap, options: SerializeOptions = {}): 
       nextDepth = depth + 1;
     }
 
-    for (const child of node.children ?? []) render(child, nextDepth);
+    const nextEnclosing = keep && node.role !== 'text' ? node.name : enclosing;
+    for (const child of node.children ?? []) render(child, nextDepth, nextEnclosing);
   };
 
-  for (const root of map.roots) render(root, 0);
+  for (const root of map.roots) render(root, 0, '');
 
   const body = lines.length ? lines.join('\n') : '(no interactive elements found)';
   const tail = dropped > 0
@@ -77,6 +86,32 @@ function shouldRender(node: PageNode, opts: { viewportOnly: boolean; includeText
   if (INTERACTIVE.has(node.role)) return true;
   if (node.role === 'heading' || node.role === 'dialog' || node.role === 'iframe') return true;
   if (node.role === 'text') return opts.includeText && node.name.length > 1;
+  return false;
+}
+
+/**
+ * True when a text node says nothing the surrounding structure already says.
+ *
+ * Two shapes account for nearly all of it. A wrapper carrying the same words as
+ * the control inside it produces `· Search` directly above
+ * `[e4] button "Search"`. And text nested *within* a control restates its label
+ * from below. Either way the labelled control is the useful line, because it is
+ * the one that can be acted on.
+ */
+function isRedundantText(map: PageMap, node: PageNode, enclosing: string): boolean {
+  const needle = node.name.trim().toLowerCase();
+  if (!needle) return true;
+  if (enclosing && enclosing.trim().toLowerCase() === needle) return true;
+
+  const stack = [...(node.children ?? [])];
+  let budget = 40; // Bounded: deep subtrees are not worth the scan.
+
+  while (stack.length && budget-- > 0) {
+    const child = map.nodes[stack.pop()!];
+    if (!child) continue;
+    if (child.name.trim().toLowerCase() === needle) return true;
+    if (child.children) stack.push(...child.children);
+  }
   return false;
 }
 
