@@ -45,6 +45,7 @@ export function App(): JSX.Element {
 
   const view = useRef<WebviewTag | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
+  const intent = useRef<HTMLInputElement | null>(null);
   const started = viewSrc !== null;
 
   // -- host wiring ----------------------------------------------------------
@@ -90,6 +91,50 @@ export function App(): JSX.Element {
       element.removeEventListener('did-navigate-in-page', syncNav);
     };
   }, [started]);
+
+  /**
+   * The shortcuts a browser is expected to have. These are handled here rather
+   * than through an Electron application menu because the guest page has focus
+   * most of the time, and a renderer-level listener still fires when the user
+   * is looking at the page rather than at our chrome.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      const meta = event.metaKey || event.ctrlKey;
+      if (!meta) return;
+
+      switch (event.key) {
+        case 'l':
+          event.preventDefault();
+          intent.current?.focus();
+          intent.current?.select();
+          break;
+        case ',':
+          event.preventDefault();
+          setShowSettings(true);
+          break;
+        case 'r':
+          event.preventDefault();
+          view.current?.reload();
+          break;
+        case '[':
+          event.preventDefault();
+          if (view.current?.canGoBack()) view.current.goBack();
+          break;
+        case ']':
+          event.preventDefault();
+          if (view.current?.canGoForward()) view.current.goForward();
+          break;
+        case '\\':
+          event.preventDefault();
+          setShowPanel((v) => !v);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Follow the trace as it grows, so the newest step is always in sight.
   useEffect(() => {
@@ -195,6 +240,7 @@ export function App(): JSX.Element {
             {mode === 'url' ? 'Go' : 'Task'}
           </span>
           <input
+            ref={intent}
             value={input}
             placeholder={
               busy

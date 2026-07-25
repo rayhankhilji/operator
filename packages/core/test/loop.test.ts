@@ -6,12 +6,20 @@ import { OperatorAgent } from '../src/agent/loop.js';
 import type { AgentEvent, PageMap } from '../src/types.js';
 import { FakeDriver, makeMap } from './helpers.js';
 
-/** A scripted stand-in for the model: replays a fixed list of tool calls. */
-function scriptedClient(turns: Array<{ name: string; input: Record<string, unknown>; text?: string }>) {
+/**
+ * A scripted stand-in for the model: replays a fixed list of tool calls and
+ * keeps the conversation it was handed, so tests can assert on the history the
+ * loop is building rather than only on its outputs.
+ */
+function scriptedClient(
+  turns: Array<{ name: string; input: Record<string, unknown>; text?: string }>,
+  seen?: { messages: Anthropic.MessageParam[][] },
+) {
   let index = 0;
   return {
     messages: {
-      stream(_params: unknown) {
+      stream(params: { messages: Anthropic.MessageParam[] }) {
+        seen?.messages.push(structuredClone(params.messages));
         const turn = turns[index++] ?? { name: 'fail', input: { reason: 'script exhausted' } };
         const content: Anthropic.ContentBlock[] = [];
         if (turn.text) content.push({ type: 'text', text: turn.text, citations: null } as Anthropic.TextBlock);
@@ -196,6 +204,71 @@ describe('OperatorAgent', () => {
     const result = await agent.run('go forever');
     assert.equal(result.status, 'cancelled');
     assert.ok(result.steps.length < 5);
+  });
+
+  test('never reports two results for one tool call', async () => {
+    // A malformed history is invisible from the outside — the run still looks
+    // like it succeeded — so this asserts on the conversation itself. `extract`
+    // is the case that matters: it is settled without touching the page, and an
+    // early version went on to execute and report it a second time.
+    const map = makeMap([{ ref: 'e1', role: 'button', name: 'Next' }]);
+    const driver = driverShowing(map);
+    const seen = { messages: [] as Anthropic.MessageParam[][] };
+
+    const agent = new OperatorAgent({
+      driver,
+      apiKey: 'test',
+      client: scriptedClient([
+        { name: 'extract', input: { query: 'price', value: '£68' } },
+        { name: 'extract', input: { query: 'airline', value: 'TAP' } },
+        { name: 'click', input: { ref: 'e1', why: 'moving on' } },
+        { name: 'done', input: { summary: 'Done.' } },
+      ], seen),
+    });
+
+    const result = await agent.run('collect the fare details');
+    assert.equal(result.status, 'done');
+    assert.deepEqual(result.data, { price: '£68', airline: 'TAP' });
+
+    const history = seen.messages.at(-1)!;
+    const resultIds: string[] = [];
+    const useIds: string[] = [];
+    for (const message of history) {
+      if (typeof message.content === 'string') continue;
+      for (const block of message.content) {
+        if (typeof block === 'string') continue;
+        if (block.type === 'tool_result') resultIds.push(block.tool_use_id);
+        if (block.type === 'tool_use') useIds.push(block.id);
+      }
+    }
+
+    assert.equal(
+      new Set(resultIds).size,
+      resultIds.length,
+      `duplicate tool_result ids: ${resultIds.join(', ')}`,
+    );
+    for (const id of resultIds) {
+      assert.ok(useIds.includes(id), `tool_result ${id} has no matching tool_use`);
+    }
+  });
+
+  test('records one step per action, with no phantom duplicates', async () => {
+    const map = makeMap([{ ref: 'e1', role: 'button', name: 'Next' }]);
+    const driver = driverShowing(map);
+
+    const agent = new OperatorAgent({
+      driver,
+      apiKey: 'test',
+      client: scriptedClient([
+        { name: 'extract', input: { query: 'price', value: 12 } },
+        { name: 'done', input: { summary: 'Done.' } },
+      ]),
+    });
+
+    const result = await agent.run('read the price');
+    const indices = result.steps.map((s) => s.index);
+    assert.deepEqual(indices, [...new Set(indices)], 'a step was recorded twice');
+    assert.equal(result.steps.length, 2);
   });
 
   test('respects the step ceiling', async () => {

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   Action,
+  ActionResult,
   AgentEvent,
   Autonomy,
   BrowserDriver,
@@ -45,6 +46,15 @@ export interface RunResult {
 interface Gate {
   kind: 'confirm' | 'handoff';
   resolve: (approved: boolean) => void;
+}
+
+/** One decision from the model, with the raw tool input kept alongside it. */
+interface Decision {
+  action: Action;
+  thought: string;
+  toolUseId: string;
+  /** The unparsed tool input, for the fields `Action` deliberately drops. */
+  input: unknown;
 }
 
 /**
@@ -167,7 +177,7 @@ export class OperatorAgent {
 
       // 2. Think.
       this.setState('thinking');
-      let decision: { action: Action; thought: string; toolUseId: string } | null;
+      let decision: Decision | null;
       try {
         decision = await this.think();
       } catch (error) {
@@ -206,8 +216,15 @@ export class OperatorAgent {
 
       // 4. Act.
       this.setState('acting');
-      const terminal = await this.performTerminalIfAny(step, decision.toolUseId);
-      if (terminal) return terminal;
+      const resolved = this.resolveWithoutPage(step, decision);
+      if (resolved.kind === 'finished') return resolved.result;
+      if (resolved.kind === 'handled') {
+        // The action was settled here and has already reported its own
+        // tool_result. Falling through would emit a second one for the same
+        // tool_use_id, which is malformed.
+        pendingObservation = false;
+        continue;
+      }
 
       const result = await this.executor.run(decision.action, map);
       step.result = result;
@@ -238,7 +255,7 @@ export class OperatorAgent {
   // -- loop internals --------------------------------------------------------
 
   /** One model call. Returns the chosen action, or null if it did not choose. */
-  private async think(): Promise<{ action: Action; thought: string; toolUseId: string } | null> {
+  private async think(): Promise<Decision | null> {
     const stream = this.client.messages.stream({
       model: this.model,
       max_tokens: 2048,
@@ -268,6 +285,7 @@ export class OperatorAgent {
       action: parsed.action,
       thought: parsed.thought || narration || toolUse.name,
       toolUseId: toolUse.id,
+      input: toolUse.input,
     };
   }
 
@@ -286,10 +304,7 @@ export class OperatorAgent {
 
       case 'reject': {
         // Structurally wrong — usually a stale ref. Re-read and let it retry.
-        step.result = { ok: false, detail: 'blocked', error: verdict.reason, pageChanged: false };
-        step.endedAt = Date.now();
-        this.steps.push(step);
-        this.emit({ type: 'step-finished', step });
+        this.close(step, { ok: false, detail: 'blocked', error: verdict.reason, pageChanged: false });
         this.pushToolResult(toolUseId, `REJECTED — ${verdict.reason}`, false);
         return { skip: true, reobserve: true };
       }
@@ -307,10 +322,9 @@ export class OperatorAgent {
           return { terminal: this.finish('cancelled', 'Stopped by the user.'), reobserve: false };
         }
         if (!approved) {
-          step.result = { ok: false, detail: 'declined', error: 'the person declined', pageChanged: false };
-          step.endedAt = Date.now();
-          this.steps.push(step);
-          this.emit({ type: 'step-finished', step });
+          this.close(step, {
+            ok: false, detail: 'declined', error: 'the person declined', pageChanged: false,
+          });
           this.pushToolResult(
             toolUseId,
             'DECLINED — the person did not approve this action. Find another way, or ask ' +
@@ -325,10 +339,7 @@ export class OperatorAgent {
       case 'handoff': {
         this.setState('awaiting-human');
         this.emit({ type: 'handoff-required', obstacle: verdict.obstacle, reason: verdict.reason });
-        step.result = { ok: true, detail: 'handed to the person', pageChanged: true };
-        step.endedAt = Date.now();
-        this.steps.push(step);
-        this.emit({ type: 'step-finished', step });
+        this.close(step, { ok: true, detail: 'handed to the person', pageChanged: true });
 
         await this.waitForGate('handoff');
         if (this.cancelled) {
@@ -347,63 +358,56 @@ export class OperatorAgent {
     }
   }
 
-  /** Resolves the three actions that end or annotate a run rather than act. */
-  private async performTerminalIfAny(step: Step, toolUseId: string): Promise<RunResult | null> {
+  /**
+   * Settles the actions that never touch the page.
+   *
+   * The three outcomes are kept explicit rather than encoded as `null`, because
+   * "this ended the run", "this is fully dealt with" and "this still needs to
+   * be executed" are genuinely different instructions to the caller — and
+   * conflating the last two means reporting a `tool_result` twice for one
+   * `tool_use_id`.
+   */
+  private resolveWithoutPage(
+    step: Step,
+    decision: Decision,
+  ): { kind: 'finished'; result: RunResult } | { kind: 'handled' } | { kind: 'act' } {
     const action = step.action;
 
-    if (action.type === 'done') {
-      step.result = { ok: true, detail: 'finished', pageChanged: false };
-      step.endedAt = Date.now();
-      this.steps.push(step);
-      this.emit({ type: 'step-finished', step });
-      if (action.data !== undefined) this.extracted.result = action.data;
-      return this.finish('done', action.summary);
-    }
+    switch (action.type) {
+      case 'done': {
+        this.close(step, { ok: true, detail: 'finished', pageChanged: false });
+        if (action.data !== undefined) this.extracted.result = action.data;
+        return { kind: 'finished', result: this.finish('done', action.summary) };
+      }
 
-    if (action.type === 'fail') {
-      step.result = { ok: false, detail: 'gave up', error: action.reason, pageChanged: false };
-      step.endedAt = Date.now();
-      this.steps.push(step);
-      this.emit({ type: 'step-finished', step });
-      return this.finish('failed', action.reason);
-    }
+      case 'fail': {
+        this.close(step, { ok: false, detail: 'gave up', error: action.reason, pageChanged: false });
+        return { kind: 'finished', result: this.finish('failed', action.reason) };
+      }
 
-    if (action.type === 'extract') {
-      // The model supplies the value directly; the page map it read is already
-      // in context, so a second round-trip to the page would add nothing.
-      const raw = (step.action as { query: string }).query;
-      const value = this.lastToolInputValue();
-      this.extracted[raw] = value;
-      this.emit({ type: 'extracted', query: raw, value });
-      step.result = { ok: true, detail: `recorded ${raw}`, pageChanged: false };
-      step.endedAt = Date.now();
-      this.steps.push(step);
-      this.emit({ type: 'step-finished', step });
-      this.pushToolResult(toolUseId, `Recorded "${raw}".`, true);
-      return null;
-    }
+      case 'extract': {
+        // The model hands the value over directly. It read it off the page map
+        // that is already in context, so going back to the page would only risk
+        // reading something that has since changed.
+        const value = (decision.input as { value?: unknown }).value ?? null;
+        this.extracted[action.query] = value;
+        this.emit({ type: 'extracted', query: action.query, value });
+        this.close(step, { ok: true, detail: `recorded ${action.query}`, pageChanged: false });
+        this.pushToolResult(decision.toolUseId, `Recorded "${action.query}".`, true);
+        return { kind: 'handled' };
+      }
 
-    if (action.type === 'handoff') {
-      // Reached only when the model asks for a person without the policy engine
-      // having already routed it; `applyVerdict` handles the common path.
-      return null;
+      default:
+        return { kind: 'act' };
     }
-
-    return null;
   }
 
-  /** Pulls the `value` out of the most recent extract tool call. */
-  private lastToolInputValue(): unknown {
-    for (let i = this.messages.length - 1; i >= 0; i--) {
-      const message = this.messages[i];
-      if (message.role !== 'assistant' || typeof message.content === 'string') continue;
-      for (const block of message.content) {
-        if (typeof block !== 'string' && block.type === 'tool_use' && block.name === 'extract') {
-          return (block.input as { value?: unknown }).value;
-        }
-      }
-    }
-    return null;
+  /** Finalises a step and publishes it, so every exit path looks the same. */
+  private close(step: Step, result: ActionResult): void {
+    step.result = result;
+    step.endedAt = Date.now();
+    this.steps.push(step);
+    this.emit({ type: 'step-finished', step });
   }
 
   private waitForGate(kind: Gate['kind']): Promise<boolean> {

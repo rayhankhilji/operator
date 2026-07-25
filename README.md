@@ -8,6 +8,9 @@ Give it a goal instead of a URL. It finds the site, reads the page the way a per
 does, fills the forms, and works through the steps — stopping to ask you whenever
 the next move is genuinely yours.
 
+[![CI](https://github.com/rayhankhilji/operator/actions/workflows/ci.yml/badge.svg)](https://github.com/rayhankhilji/operator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-7c5cff.svg)](LICENSE)
+
 <img src="docs/operator.png" alt="Operator running a task, with its reasoning trace beside the live page" width="100%">
 
 </div>
@@ -141,6 +144,15 @@ Paste your API key into Settings on first launch. Then type a goal into the bar 
 the top — it accepts both addresses and instructions, and tells you which one it
 read as you type.
 
+| | |
+|---|---|
+| `⌘L` | Focus the intent bar |
+| `⌘\` | Show or hide the run panel |
+| `⌘R` | Reload the page |
+| `⌘[` / `⌘]` | Back / forward |
+| `⌘,` | Settings |
+| `Esc` | Stop the run |
+
 To build a distributable app:
 
 ```bash
@@ -207,7 +219,7 @@ apps/desktop/             the browser
 ## Development
 
 ```bash
-npm test          # 48 tests over policy, perception, executor and the loop
+npm test          # 50 tests over policy, perception, executor and the loop
 npm run typecheck # strict, across all three tsconfigs
 npm run build
 ```
