@@ -1,0 +1,36 @@
+appId: dev.operator.browser
+productName: Operator
+
+# npm workspaces hoist `electron` to the repo root, where electron-builder does
+# not look for it, so the version is stated here instead of inferred.
+electronVersion: 33.4.11
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+
+extraMetadata:
+  main: out/main/index.js
+
+# The app ships with no runtime dependencies: @operator/core and the Anthropic
+# SDK are both bundled into out/main by Vite. So there is nothing to install
+# into the app directory and nothing native to rebuild.
+npmRebuild: false
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - dmg
+    - zip
+  darkModeSupport: true
+
+win:
+  target: nsis
+
+linux:
+  target: AppImage
+  category: Network
