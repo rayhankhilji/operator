@@ -41,6 +41,14 @@ function scriptedClient(
   } as unknown as Anthropic;
 }
 
+/** Flattens a message's content back to plain text for assertions. */
+function asText(content: Anthropic.MessageParam['content']): string {
+  if (typeof content === 'string') return content;
+  return content
+    .map((block) => (typeof block !== 'string' && block.type === 'text' ? block.text : ''))
+    .join('\n');
+}
+
 function driverShowing(map: PageMap): FakeDriver {
   const driver = new FakeDriver();
   driver.responses.capture = map;
@@ -269,6 +277,131 @@ describe('OperatorAgent', () => {
     const indices = result.steps.map((s) => s.index);
     assert.deepEqual(indices, [...new Set(indices)], 'a step was recorded twice');
     assert.equal(result.steps.length, 2);
+  });
+
+  test('sends a strictly alternating transcript', async () => {
+    // The loop appends from several places and two user-role pushes routinely
+    // land next to each other — the goal followed by the first observation does
+    // it on turn one. The Messages API expects alternating turns, so this would
+    // have failed on the very first live call.
+    const map = makeMap([{ ref: 'e1', role: 'button', name: 'Next' }]);
+    const driver = driverShowing(map);
+    const seen = { messages: [] as Anthropic.MessageParam[][] };
+
+    const agent = new OperatorAgent({
+      driver,
+      apiKey: 'test',
+      client: scriptedClient([
+        { name: 'click', input: { ref: 'e1', why: 'first' } },
+        { name: 'scroll', input: { direction: 'down', why: 'second' } },
+        { name: 'done', input: { summary: 'Done.' } },
+      ], seen),
+    });
+
+    await agent.run('do a couple of things');
+
+    assert.ok(seen.messages.length >= 3, 'expected several model calls');
+    for (const history of seen.messages) {
+      assert.equal(history[0]?.role, 'user', 'a conversation must open with the user');
+      for (let i = 1; i < history.length; i++) {
+        assert.notEqual(
+          history[i].role,
+          history[i - 1].role,
+          `consecutive ${history[i].role} turns at index ${i}`,
+        );
+      }
+    }
+  });
+
+  test('merging preserves every content block, in order', async () => {
+    const map = makeMap([{ ref: 'e1', role: 'button', name: 'Next' }]);
+    const driver = driverShowing(map);
+    const seen = { messages: [] as Anthropic.MessageParam[][] };
+
+    const agent = new OperatorAgent({
+      driver,
+      apiKey: 'test',
+      client: scriptedClient([
+        { name: 'click', input: { ref: 'e1', why: 'go' } },
+        { name: 'done', input: { summary: 'Done.' } },
+      ], seen),
+    });
+
+    await agent.run('press the button');
+
+    // The goal and the first page map must both survive being merged into one
+    // opening turn — losing either would silently blind or unmoor the agent.
+    const first = seen.messages[0]![0]!;
+    const text = asText(first.content);
+    assert.match(text, /Goal: press the button/);
+    assert.match(text, /<page-map>/);
+  });
+
+  test('retries a rate limit instead of losing the run', async () => {
+    const map = makeMap([{ ref: 'e1', role: 'button', name: 'Next' }]);
+    const driver = driverShowing(map);
+
+    let calls = 0;
+    const flaky = {
+      messages: {
+        stream() {
+          calls++;
+          if (calls === 1) {
+            const error = Object.assign(new Error('rate limited'), {
+              status: 429,
+              headers: { 'retry-after': '0' },
+            });
+            return {
+              on() { return this; },
+              async finalMessage(): Promise<never> { throw error; },
+            };
+          }
+          return {
+            on() { return this; },
+            async finalMessage(): Promise<Anthropic.Message> {
+              return {
+                content: [{
+                  type: 'tool_use', id: 'tu_x', name: 'done', input: { summary: 'Recovered.' },
+                } as Anthropic.ToolUseBlock],
+              } as Anthropic.Message;
+            },
+          };
+        },
+      },
+    } as unknown as Anthropic;
+
+    const agent = new OperatorAgent({ driver, apiKey: 'test', client: flaky });
+    const result = await agent.run('survive a 429');
+
+    assert.equal(result.status, 'done');
+    assert.equal(result.summary, 'Recovered.');
+    assert.equal(calls, 2, 'should have retried exactly once');
+  });
+
+  test('gives up on an error that will not get better', async () => {
+    const map = makeMap([{ ref: 'e1', role: 'button', name: 'Next' }]);
+    const driver = driverShowing(map);
+
+    let calls = 0;
+    const broken = {
+      messages: {
+        stream() {
+          calls++;
+          const error = Object.assign(new Error('model not found'), { status: 404 });
+          return {
+            on() { return this; },
+            async finalMessage(): Promise<never> { throw error; },
+          };
+        },
+      },
+    } as unknown as Anthropic;
+
+    const agent = new OperatorAgent({ driver, apiKey: 'test', client: broken });
+    const result = await agent.run('fail fast');
+
+    assert.equal(result.status, 'failed');
+    assert.match(result.summary, /model not found/);
+    assert.equal(calls, 1, 'a 404 is not worth retrying');
   });
 
   test('respects the step ceiling', async () => {

@@ -256,17 +256,7 @@ export class OperatorAgent {
 
   /** One model call. Returns the chosen action, or null if it did not choose. */
   private async think(): Promise<Decision | null> {
-    const stream = this.client.messages.stream({
-      model: this.model,
-      max_tokens: 2048,
-      system: systemPrompt(this.autonomy),
-      tools: TOOLS,
-      messages: this.prunedMessages(),
-    });
-
-    stream.on('text', (text) => this.emit({ type: 'thinking-delta', text }));
-
-    const message = await stream.finalMessage();
+    const message = await this.callModel();
     this.messages.push({ role: 'assistant', content: message.content });
 
     const toolUse = message.content.find(
@@ -287,6 +277,49 @@ export class OperatorAgent {
       toolUseId: toolUse.id,
       input: toolUse.input,
     };
+  }
+
+  /**
+   * One streamed model call, retried through the failures that are worth
+   * retrying.
+   *
+   * A long run is dozens of calls, so over a whole task the chance of hitting a
+   * rate limit or a momentarily overloaded model is not small. Losing forty
+   * steps of real progress — some of which the person sat through a handoff for
+   * — because of one 429 would be a poor trade, so transient failures cost a
+   * pause rather than the run. Anything else is a real error and is raised.
+   */
+  private async callModel(): Promise<Anthropic.Message> {
+    const MAX_ATTEMPTS = 4;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (this.cancelled) throw new Error('cancelled');
+
+      try {
+        const stream = this.client.messages.stream({
+          model: this.model,
+          max_tokens: 2048,
+          system: systemPrompt(this.autonomy),
+          tools: TOOLS,
+          messages: this.outboundMessages(),
+        });
+        stream.on('text', (text) => this.emit({ type: 'thinking-delta', text }));
+        return await stream.finalMessage();
+      } catch (error) {
+        lastError = error;
+        if (!isRetryable(error) || attempt === MAX_ATTEMPTS) break;
+
+        const waitMs = backoffMs(error, attempt);
+        this.emit({
+          type: 'log',
+          level: 'warn',
+          message: `Model call failed (${describeError(error)}). Retrying in ${Math.round(waitMs / 1000)}s — attempt ${attempt + 1} of ${MAX_ATTEMPTS}.`,
+        });
+        await delay(waitMs);
+      }
+    }
+    throw lastError;
   }
 
   /**
@@ -448,7 +481,11 @@ export class OperatorAgent {
    * of the conversation intact (every tool_use still has its tool_result) while
    * dropping the bulk.
    */
-  private prunedMessages(): Anthropic.MessageParam[] {
+  private outboundMessages(): Anthropic.MessageParam[] {
+    return mergeAdjacent(this.prune());
+  }
+
+  private prune(): Anthropic.MessageParam[] {
     const KEEP_FULL_MAPS = 3;
     let seen = 0;
 
@@ -496,6 +533,63 @@ export class OperatorAgent {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Statuses worth trying again: the request was fine, the moment was not. */
+const RETRYABLE_STATUS = new Set([408, 409, 429, 500, 502, 503, 504, 529]);
+
+function isRetryable(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  if (typeof status === 'number') return RETRYABLE_STATUS.has(status);
+
+  // Connection-level failures carry no status but are equally transient.
+  const message = describeError(error).toLowerCase();
+  return /econnreset|etimedout|enotfound|econnrefused|socket hang up|network|fetch failed|aborted/.test(
+    message,
+  );
+}
+
+/** Exponential backoff, but a server-supplied `retry-after` always wins. */
+function backoffMs(error: unknown, attempt: number): number {
+  const headers = (error as { headers?: Record<string, string> })?.headers;
+  const retryAfter = Number(headers?.['retry-after']);
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.min(retryAfter * 1000, 60_000);
+  }
+  const base = 1000 * 2 ** (attempt - 1);
+  return Math.min(base + Math.random() * 400, 30_000); // jitter, so parallel runs do not sync up
+}
+
+/**
+ * Collapses runs of same-role messages into single turns.
+ *
+ * The loop appends to the transcript from several places — the goal, an
+ * observation, a tool result, a nudge — and whether two of them land next to
+ * each other depends on the path taken through the run. Rather than make every
+ * call site aware of what preceded it, the conversation is normalised once on
+ * the way out. It also guarantees a strictly alternating transcript, which is
+ * what the Messages API expects.
+ */
+function mergeAdjacent(messages: Anthropic.MessageParam[]): Anthropic.MessageParam[] {
+  const out: Anthropic.MessageParam[] = [];
+
+  for (const message of messages) {
+    const previous = out[out.length - 1];
+    if (previous && previous.role === message.role) {
+      out[out.length - 1] = {
+        role: message.role,
+        content: [...asBlocks(previous.content), ...asBlocks(message.content)],
+      };
+    } else {
+      out.push(message);
+    }
+  }
+  return out;
+}
+
+function asBlocks(content: Anthropic.MessageParam['content']): Anthropic.ContentBlockParam[] {
+  if (typeof content === 'string') return [{ type: 'text', text: content }];
+  return content as Anthropic.ContentBlockParam[];
 }
 
 export { delay };

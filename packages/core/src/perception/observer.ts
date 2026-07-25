@@ -7,7 +7,29 @@ export interface ObserveOptions {
   maxNodes?: number;
   /** How long to keep waiting for the page to stop changing. */
   settleTimeoutMs?: number;
+  /**
+   * How long to keep looking before accepting a page that appears to have
+   * almost nothing on it. Guards against reading an app before it renders.
+   */
+  minimumWaitMs?: number;
 }
+
+/**
+ * Below this many interactive elements, a page is treated as suspiciously
+ * empty rather than genuinely simple.
+ */
+const SPARSE_THRESHOLD = 3;
+
+const INTERACTIVE_ROLES = new Set([
+  'link', 'button', 'textbox', 'combobox', 'checkbox', 'radio', 'tab', 'menuitem',
+]);
+
+/**
+ * Observation only ever reads, so it asks for the one method it uses rather
+ * than the whole driver. That is not merely tidy: it makes it impossible for
+ * anything on this path to navigate or click by accident.
+ */
+export type ReadOnlyDriver = Pick<BrowserDriver, 'evaluate'>;
 
 /**
  * Captures what the page looks like *now*, once it has stopped moving.
@@ -19,32 +41,50 @@ export interface ObserveOptions {
  * consecutive captures, with a hard timeout so a page that polls forever — a
  * live price ticker, a chat widget — cannot stall the run.
  */
-export async function observe(driver: BrowserDriver, options: ObserveOptions = {}): Promise<PageMap> {
-  const { maxNodes = 1200, settleTimeoutMs = 6000 } = options;
-  const deadline = Date.now() + settleTimeoutMs;
+export async function observe(driver: ReadOnlyDriver, options: ObserveOptions = {}): Promise<PageMap> {
+  const { maxNodes = 1200, settleTimeoutMs = 10_000, minimumWaitMs = 3000 } = options;
+
+  const start = Date.now();
+  const deadline = start + settleTimeoutMs;
+  const sparseUntil = start + Math.min(minimumWaitMs, settleTimeoutMs);
 
   let previous: PageMap | null = null;
   let stableRounds = 0;
 
   for (;;) {
     const map = await capture(driver, maxNodes);
+    const now = Date.now();
 
     if (previous && !map.busy && sameShape(previous, map)) {
       stableRounds++;
-      // Two agreeing observations is enough; a third rarely changes the answer.
-      if (stableRounds >= 1) return map;
+      // Two agreeing observations is normally enough. The exception is a page
+      // that agrees with itself because it has not rendered yet: a single-page
+      // app reports readyState complete as soon as the shell arrives, so two
+      // identical near-empty captures 250ms apart look perfectly stable while
+      // the actual interface is still on its way. Keep looking a little longer
+      // before believing a page really is that bare.
+      const sparse = countInteractive(map) < SPARSE_THRESHOLD;
+      if (!sparse || now >= sparseUntil) return map;
     } else {
       stableRounds = 0;
     }
 
-    if (Date.now() >= deadline) return map;
+    if (now >= deadline) return map;
 
     previous = map;
     await delay(250);
   }
 }
 
-async function capture(driver: BrowserDriver, maxNodes: number): Promise<PageMap> {
+function countInteractive(map: PageMap): number {
+  let count = 0;
+  for (const node of map.nodes) {
+    if (INTERACTIVE_ROLES.has(node.role) && !node.disabled) count++;
+  }
+  return count;
+}
+
+async function capture(driver: ReadOnlyDriver, maxNodes: number): Promise<PageMap> {
   const raw = await driver.evaluate<string>(captureExpression(maxNodes));
   const map = JSON.parse(raw) as PageMap;
   // Guard against a page that navigated mid-capture and returned something odd.
