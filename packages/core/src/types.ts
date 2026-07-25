@@ -199,6 +199,12 @@ export type AgentEvent =
   | { type: 'confirm-required'; step: Step; summary: string; reason: string }
   | { type: 'handoff-required'; obstacle: Obstacle; reason: string }
   | { type: 'human-resumed' }
+  /**
+   * Where the agent is about to act, in the page's own viewport coordinates.
+   * Emitted so an interface can show the pointer travelling and landing —
+   * watching it work is how you build any trust in it.
+   */
+  | { type: 'pointer'; x: number; y: number; kind: 'move' | 'click' | 'type'; label: string }
   | { type: 'extracted'; query: string; value: unknown }
   | { type: 'run-finished'; summary: string; data?: unknown; steps: number }
   | { type: 'run-failed'; reason: string }

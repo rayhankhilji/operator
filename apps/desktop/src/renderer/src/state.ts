@@ -16,6 +16,16 @@ export interface Interrupt {
   step?: Step;
 }
 
+/** Where the agent's pointer is, in the page's own viewport coordinates. */
+export interface PointerState {
+  x: number;
+  y: number;
+  kind: 'move' | 'click' | 'type';
+  label: string;
+  /** Bumped on every event so a repeated click still re-triggers the ripple. */
+  seq: number;
+}
+
 export interface RunModel {
   runId: string | null;
   goal: string;
@@ -27,6 +37,7 @@ export interface RunModel {
   findings: Array<{ query: string; value: unknown }>;
   outcome: { kind: 'done' | 'failed'; message: string } | null;
   observed: { url: string; title: string; nodeCount: number } | null;
+  pointer: PointerState | null;
 }
 
 export const initialRun: RunModel = {
@@ -39,12 +50,16 @@ export const initialRun: RunModel = {
   findings: [],
   outcome: null,
   observed: null,
+  pointer: null,
 };
 
 export function reduce(model: RunModel, event: AgentEvent): RunModel {
   switch (event.type) {
     case 'run-started':
       return { ...initialRun, runId: event.runId, goal: event.goal, state: 'observing' };
+
+    case 'run-finished':
+      return { ...model, state: 'done', interrupt: null, pointer: null, outcome: { kind: 'done', message: event.summary } };
 
     case 'state':
       return { ...model, state: event.state };
@@ -90,14 +105,23 @@ export function reduce(model: RunModel, event: AgentEvent): RunModel {
     case 'human-resumed':
       return { ...model, interrupt: null };
 
+    case 'pointer':
+      return {
+        ...model,
+        pointer: {
+          x: event.x,
+          y: event.y,
+          kind: event.kind,
+          label: event.label,
+          seq: (model.pointer?.seq ?? 0) + 1,
+        },
+      };
+
     case 'extracted':
       return { ...model, findings: [...model.findings, { query: event.query, value: event.value }] };
 
-    case 'run-finished':
-      return { ...model, state: 'done', interrupt: null, outcome: { kind: 'done', message: event.summary } };
-
     case 'run-failed':
-      return { ...model, state: 'failed', interrupt: null, outcome: { kind: 'failed', message: event.reason } };
+      return { ...model, state: 'failed', interrupt: null, pointer: null, outcome: { kind: 'failed', message: event.reason } };
 
     case 'log':
       return model;

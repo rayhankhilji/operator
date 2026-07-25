@@ -1,6 +1,8 @@
 import { strict as assert } from 'node:assert';
 import { test, describe } from 'node:test';
 
+import { systemPrompt } from '../src/agent/prompt.js';
+import { DEFAULT_AUTONOMY } from '../src/agent/loop.js';
 import { serializePageMap } from '../src/perception/serialize.js';
 import { PERCEPTION_SCRIPT, captureExpression, callExpression } from '../src/perception/injected.js';
 import { makeMap } from './helpers.js';
@@ -26,6 +28,36 @@ describe('the injected perception script', () => {
 
   test('the capture expression honours the node cap', () => {
     assert.ok(captureExpression(42).includes('maxNodes: 42'));
+  });
+});
+
+describe('systemPrompt', () => {
+  test('tells the model what day it is', () => {
+    // Without this the agent cannot resolve "next month" or "this weekend",
+    // which almost every booking or scheduling task depends on.
+    const prompt = systemPrompt(DEFAULT_AUTONOMY, new Date('2026-03-14T09:00:00Z'));
+    assert.match(prompt, /14 March 2026/);
+    assert.match(prompt, /Saturday/);
+  });
+
+  test('states the domain restriction when there is one', () => {
+    const scoped = systemPrompt({ ...DEFAULT_AUTONOMY, allowedDomains: ['kayak.com'] });
+    assert.match(scoped, /only visit: kayak\.com/);
+
+    const open = systemPrompt(DEFAULT_AUTONOMY);
+    assert.match(open, /any public website/);
+  });
+
+  test('frames page content as untrusted', () => {
+    const prompt = systemPrompt(DEFAULT_AUTONOMY);
+    assert.match(prompt, /not your principal|information, not instruction/i);
+  });
+
+  test('names the things it will not do itself', () => {
+    const prompt = systemPrompt(DEFAULT_AUTONOMY);
+    for (const rule of [/CAPTCHA/, /password/i, /one-time code/i, /card number/i]) {
+      assert.match(prompt, rule);
+    }
   });
 });
 

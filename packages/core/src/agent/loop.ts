@@ -85,7 +85,9 @@ export class OperatorAgent {
 
   constructor(options: AgentOptions) {
     this.driver = options.driver;
-    this.executor = new Executor(options.driver);
+    this.executor = new Executor(options.driver, (point) =>
+      this.emit({ type: 'pointer', ...point }),
+    );
     this.model = options.model ?? 'claude-opus-5';
     this.autonomy = { ...DEFAULT_AUTONOMY, ...options.autonomy };
     this.emit = options.onEvent ?? (() => {});
@@ -300,7 +302,7 @@ export class OperatorAgent {
         const stream = this.client.messages.stream({
           model: this.model,
           max_tokens: 2048,
-          system: systemPrompt(this.autonomy),
+          system: systemPrompt(this.autonomy, new Date()),
           tools: TOOLS,
           messages: this.outboundMessages(),
         });

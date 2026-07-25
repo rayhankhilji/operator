@@ -12,8 +12,16 @@ import { describeNode, findNode } from '../perception/serialize.js';
  * for synthetic events. Driving the real input pipeline is most of why Operator
  * works on pages that DOM-poking automation does not.
  */
+/** Notified whenever the executor is about to touch a point on the page. */
+export type PointerListener = (
+  point: { x: number; y: number; kind: 'move' | 'click' | 'type'; label: string },
+) => void;
+
 export class Executor {
-  constructor(private readonly driver: BrowserDriver) {}
+  constructor(
+    private readonly driver: BrowserDriver,
+    private readonly onPointer: PointerListener = () => {},
+  ) {}
 
   async run(action: Action, map: PageMap): Promise<ActionResult> {
     try {
@@ -51,7 +59,10 @@ export class Executor {
         const spot = await this.locate(action.ref);
         if (!spot.ok) return this.miss(spot.error);
 
+        const label = this.label(map, action.ref);
+        this.onPointer({ ...spot, kind: 'move', label });
         await this.driver.moveMouse(spot.x, spot.y);
+        this.onPointer({ ...spot, kind: 'click', label });
         await this.driver.click(spot.x, spot.y, {
           button: action.button,
           clickCount: action.clickCount,
@@ -66,6 +77,7 @@ export class Executor {
       case 'hover': {
         const spot = await this.locate(action.ref);
         if (!spot.ok) return this.miss(spot.error);
+        this.onPointer({ ...spot, kind: 'move', label: this.label(map, action.ref) });
         await this.driver.moveMouse(spot.x, spot.y);
         await delay(180); // Let hover-intent handlers fire.
         return { ok: true, detail: `hovered ${this.label(map, action.ref)}`, pageChanged: true };
@@ -75,6 +87,7 @@ export class Executor {
         // Click the field first: many editors only initialise on real focus.
         const spot = await this.locate(action.ref);
         if (!spot.ok) return this.miss(spot.error);
+        this.onPointer({ ...spot, kind: 'type', label: this.label(map, action.ref) });
         await this.driver.click(spot.x, spot.y);
 
         const prepared = await this.call<{ ok: boolean; error?: string }>('prepareInput', [

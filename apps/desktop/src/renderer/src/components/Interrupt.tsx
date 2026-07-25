@@ -5,11 +5,11 @@ import { Hand, Shield } from './icons.js';
 /**
  * The two moments where the run stops and looks at you.
  *
- * These are the most important components in the app, so they get the most
- * deliberate copy. A confirmation must say exactly what is about to happen in
- * words the person can check against the page. A handoff must say what is
- * needed of them, why Operator will not do it, and how to give the page back —
- * without ever sounding like an error.
+ * These get the most deliberate copy in the app. A confirmation has to say what
+ * is about to happen in words you can check against the page in front of you. A
+ * handoff has to say what is needed, why Operator will not do it, and how to
+ * give the page back — while never once sounding like an error, because it is
+ * not one.
  */
 
 interface Props {
@@ -20,68 +20,69 @@ interface Props {
 
 export function Interrupt({ interrupt, onConfirm, onResume }: Props): JSX.Element {
   return interrupt.kind === 'confirm'
-    ? <ConfirmCard interrupt={interrupt} onConfirm={onConfirm} />
-    : <HandoffCard interrupt={interrupt} onResume={onResume} />;
+    ? <Confirm interrupt={interrupt} onConfirm={onConfirm} />
+    : <Handoff interrupt={interrupt} onResume={onResume} />;
 }
 
-function ConfirmCard({
-  interrupt,
-  onConfirm,
-}: { interrupt: InterruptModel; onConfirm: (approved: boolean) => void }): JSX.Element {
+function Confirm({
+  interrupt, onConfirm,
+}: { interrupt: InterruptModel; onConfirm: (ok: boolean) => void }): JSX.Element {
   return (
-    <div className="card" data-kind="confirm">
-      <div className="card-title"><Shield /> Needs your approval</div>
-      <div className="card-summary">{interrupt.summary}</div>
-      <div className="card-reason">
-        Operator paused because {interrupt.reason}. Check the page before approving —
-        what you see there is the truth, not what is written here.
-      </div>
-      <div className="card-actions">
-        <button className="btn btn-amber" onClick={() => onConfirm(true)}>Approve</button>
-        <button className="btn btn-ghost" onClick={() => onConfirm(false)}>Don&rsquo;t do it</button>
+    <div className="interrupt" data-kind="confirm">
+      <div className="interrupt-tag"><Shield /> Your call</div>
+      <h3>{interrupt.summary}</h3>
+      <p>
+        Operator stopped because {interrupt.reason}. The page on the card above is
+        the real one — check it there before you decide, rather than taking this
+        summary at its word.
+      </p>
+      <div className="choices">
+        <button className="btn btn-flame" onClick={() => onConfirm(true)}>Go ahead</button>
+        <button className="btn btn-quiet" onClick={() => onConfirm(false)}>Don&rsquo;t</button>
       </div>
     </div>
   );
 }
 
-function HandoffCard({
-  interrupt,
-  onResume,
+function Handoff({
+  interrupt, onResume,
 }: { interrupt: InterruptModel; onResume: () => void }): JSX.Element {
   const obstacle = interrupt.obstacle;
+
   return (
-    <div className="card" data-kind="handoff">
-      <div className="card-title"><Hand /> The page is yours</div>
-      <div className="card-summary">{titleFor(obstacle?.kind)}</div>
-      <div className="card-reason">{interrupt.reason}</div>
+    <div className="interrupt" data-kind="handoff">
+      <div className="interrupt-tag"><Hand /> Over to you</div>
+      <h3>{headline(obstacle?.kind)}</h3>
+      <p>{interrupt.reason}</p>
 
       {obstacle && obstacle.evidence.length > 0 && (
-        <div className="evidence">
+        <div className="receipts">
           {obstacle.evidence.map((line, i) => <span key={i}>{line}</span>)}
         </div>
       )}
 
-      <div className="card-reason" style={{ marginTop: 10 }}>
-        Use the page on the left as you normally would. Operator is not watching your
-        keystrokes and will not read what you enter. When you are finished, hand it back
-        and it will pick up from wherever you left off.
-      </div>
+      <p>
+        The card above is live — use it exactly as you would any other browser.
+        Operator is not reading your keystrokes and never sees what you enter.
+        When you are done, hand it back and it will look at the page afresh and
+        carry on from wherever you left it.
+      </p>
 
-      <div className="card-actions">
-        <button className="btn btn-amber" onClick={onResume}>I&rsquo;m done — carry on</button>
+      <div className="choices">
+        <button className="btn btn-tide" onClick={onResume}>Done — carry on</button>
       </div>
     </div>
   );
 }
 
-function titleFor(kind: string | undefined): string {
+function headline(kind: string | undefined): string {
   switch (kind) {
-    case 'captcha': return 'There is a CAPTCHA to solve.';
-    case 'login': return 'This step needs your sign-in details.';
-    case 'two-factor': return 'This step needs a code from your phone.';
-    case 'payment': return 'This step needs your payment details.';
-    case 'paywall': return 'This content is behind a paywall.';
-    case 'consent': return 'There is a consent banner to answer.';
-    default: return 'This step needs a person.';
+    case 'captcha': return 'There’s a CAPTCHA in the way.';
+    case 'login': return 'This one needs your sign-in.';
+    case 'two-factor': return 'This needs a code from your phone.';
+    case 'payment': return 'This needs your payment details.';
+    case 'paywall': return 'This is behind a paywall.';
+    case 'consent': return 'There’s a consent banner to answer.';
+    default: return 'This part needs a person.';
   }
 }
