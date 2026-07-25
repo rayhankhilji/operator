@@ -151,9 +151,10 @@ export function App(): JSX.Element {
     if (looksLikeUrl(text)) {
       const target = toUrl(text);
       setUrl(target);
-      // On the first navigation the guest does not exist yet, so `src` is what
-      // mounts it. Afterwards it is already there and must be told to move.
-      if (view.current) void window.operator.navigate(target);
+      // Until the guest has attached, the main process has no id to drive, so
+      // routing through it would throw. Setting `src` both mounts it and moves
+      // it, which covers the gap between mounting and dom-ready.
+      if (attached) void window.operator.navigate(target);
       else setViewSrc(target);
       return;
     }
