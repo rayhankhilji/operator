@@ -152,7 +152,8 @@ export function App(): JSX.Element {
   const yours = run.interrupt?.kind === 'handoff';
 
   return (
-    <div className="app" data-state={run.state} data-focus={focus && started} data-started={started}>
+    <div className="app" data-state={run.state} data-focus={focus && started} data-started={started}
+      data-waiting={run.interrupt?.kind ?? ''}>
       <div className="ambience" />
 
       <header className="topbar">

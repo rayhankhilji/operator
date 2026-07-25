@@ -52,6 +52,17 @@ hand it back, and it re-reads the page and carries on from wherever you left it.
 This is a first-class path through the system, not an error branch. Most real
 tasks — booking, checkout, anything behind a login — hit it at least once.
 
+The other kind of pause is a **confirmation**: something consequential that
+Operator can do, but wants signing off first. Those are deliberately a different
+colour from a handoff, because they ask a different thing of you — one wants you
+to go and do something, the other wants a judgement.
+
+<img src="docs/confirm.png" alt="Operator pausing before a purchase, asking for approval" width="100%">
+
+And when the page itself is what you want, `⌘\` gives it the whole window.
+
+<img src="docs/focus.png" alt="Focus mode: the page card filling the window with the composer still to hand" width="100%">
+
 ## How it sees a page
 
 Screenshots are expensive, lossy, and terrible at telling you a button is

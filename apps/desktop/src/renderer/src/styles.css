@@ -18,8 +18,15 @@
    2. One voice per register. A serif carries the agent's words, a tight sans
       carries the interface, a mono carries machine detail. You always know
       who is speaking.
-   3. Colour is reserved for agency. Orange is the agent moving. Teal is your
-      turn. Lime is done. Nothing decorative is ever coloured.
+   3. Colour is reserved for agency. Orange is the agent moving, or about to do
+      something consequential it wants signing off. Teal is the page being
+      handed to you. Lime is done. Nothing decorative is ever coloured.
+
+      The two waiting states are deliberately different hues, because they ask
+      different things: a handoff wants you to go and do something, while a
+      confirmation wants a judgement about something with consequences. Letting
+      both read as "your turn" teal put a teal status light above an orange
+      card, which is just a system disagreeing with itself.
 --------------------------------------------------------------------------- */
 
 :root {
@@ -188,6 +195,12 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
 
 .app[data-state='awaiting-human'] .aperture { border-color: var(--tide); }
 .app[data-state='awaiting-human'] .aperture::after { background: var(--tide); }
+
+/* A confirmation is a different kind of waiting from a handoff — see the note
+   at the top. Placed after the rules above so source order carries it. */
+.app[data-waiting='confirm'] { --glow: rgba(255, 95, 31, 0.28); }
+.app[data-waiting='confirm'] .aperture { border-color: var(--flame); }
+.app[data-waiting='confirm'] .aperture::after { background: var(--flame); animation: none; }
 .app[data-state='done'] .aperture { border-color: var(--leaf); }
 .app[data-state='done'] .aperture::after { background: var(--leaf); }
 
@@ -295,10 +308,20 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
     0 34px 80px -18px rgba(0, 0, 0, 0.8);
 }
 
-/* Focus mode: the artifact takes the room. */
-.app[data-focus='true'] .canvas-inner { padding-bottom: 132px; }
-.app[data-focus='true'] .stage { width: 100%; margin-bottom: 12px; }
-.app[data-focus='true'] .card { aspect-ratio: auto; height: calc(100vh - 128px); }
+/* Focus mode: the artifact takes the room.
+
+   Sized by filling the space rather than by subtracting from 100vh — the
+   arithmetic version has to know the height of the bar, the margins and the
+   dock, and gets it wrong the moment any of them change, leaving the card
+   scrolled with its top edge cut off. */
+.app[data-focus='true'] .canvas { overflow: hidden; }
+.app[data-focus='true'] .canvas-inner {
+  height: 100%;
+  padding: 0 24px 104px;
+  justify-content: flex-start;
+}
+.app[data-focus='true'] .stage { width: 100%; height: 100%; margin: 0; }
+.app[data-focus='true'] .card { aspect-ratio: auto; height: 100%; }
 
 /* --- the agent's pointer -------------------------------------------------- */
 
