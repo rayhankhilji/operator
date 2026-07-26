@@ -1,6 +1,11 @@
 import { app, BrowserWindow, ipcMain, shell, webContents } from 'electron';
 import { join } from 'node:path';
-import { OperatorAgent, type AgentEvent } from '@operator/core';
+import {
+  OperatorAgent,
+  callExpression,
+  captureExpression,
+  type AgentEvent,
+} from '@operator/core';
 
 import { ElectronDriver } from './driver.js';
 import { Store, type Settings } from './store.js';
@@ -28,7 +33,7 @@ function createWindow(): void {
     // The chrome is ours, not the OS's — the traffic lights sit inside our UI.
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 18, y: 22 },
-    backgroundColor: '#0a0a0f',
+    backgroundColor: '#fcfcfb',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -161,6 +166,24 @@ ipcMain.handle('agent:confirm', (_event, approved: boolean) => {
 ipcMain.handle('agent:resume', () => {
   agent?.resumeFromHandoff();
   return true;
+});
+
+/**
+ * Show the person where a recorded fact came from: go back to the page it was
+ * read on if we have drifted away, then outline the element.
+ */
+ipcMain.handle('view:reveal', async (_event, payload: { url: string; ref?: string }) => {
+  const driver = driverOrThrow();
+  if (payload.url && (await driver.url()) !== payload.url) {
+    await driver.navigate(payload.url);
+  }
+  if (!payload.ref) return { ok: true };
+
+  // Refs belong to one observation, so the map has to be rebuilt before the
+  // ref means anything on a page we have just navigated back to.
+  await driver.evaluate(captureExpression(1200));
+  const raw = await driver.evaluate<string>(callExpression('flash', [payload.ref]));
+  return JSON.parse(raw) as { ok: boolean; error?: string };
 });
 
 /** Plain manual browsing, for when the person is driving. */

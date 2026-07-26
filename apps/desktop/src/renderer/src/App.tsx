@@ -3,15 +3,15 @@ import type { WebviewTag } from 'electron';
 import type { AgentEvent } from '@operator/core';
 
 import { Stage } from './components/Stage.js';
-import { Thread } from './components/Thread.js';
+import { Answer } from './components/Answer.js';
 import { Composer } from './components/Composer.js';
 import { Interrupt } from './components/Interrupt.js';
 import { Settings } from './components/Settings.js';
-import { Back, Collapse, Expand, Forward, Gear, Lock, Reload } from './components/icons.js';
-import { initialRun, isBusy, looksLikeUrl, reduce, toUrl } from './state.js';
+import { Back, Chevron, Collapse, Expand, Forward, Gear, Lock, Reload } from './components/icons.js';
+import { initialRun, isBusy, looksLikeUrl, reduce, toUrl, type Finding } from './state.js';
 import type { Settings as SettingsModel } from '../../preload/index.js';
 
-const SEEDS = [
+const SUGGESTIONS = [
   'Find the cheapest direct flight from London to Lisbon next month',
   'What does this site charge for its team plan?',
   'Compare the top three stand mixers under £200 and tell me which wins',
@@ -52,6 +52,27 @@ export function App(): JSX.Element {
 
   useEffect(() => window.operator.onEvent((event: AgentEvent) => dispatch(event)), []);
 
+  /**
+   * Light is the design; dark and system are choices. Following the OS by
+   * default would quietly hand half the people a product nobody designed.
+   */
+  useEffect(() => {
+    const choice = settings?.theme ?? 'light';
+    const root = document.documentElement;
+
+    const apply = (): void => {
+      const dark = choice === 'dark'
+        || (choice === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      root.dataset.theme = dark ? 'dark' : 'light';
+    };
+    apply();
+
+    if (choice !== 'system') return;
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    query.addEventListener('change', apply);
+    return () => query.removeEventListener('change', apply);
+  }, [settings?.theme]);
+
   useEffect(() => {
     const element = view.current;
     if (!element) return;
@@ -77,12 +98,10 @@ export function App(): JSX.Element {
     };
   }, [started]);
 
-  // Keep the newest beat in view as the thread grows.
+  // Follow the answer as it fills in.
   useEffect(() => {
-    const el = canvas.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [run.steps.length, run.interrupt, run.outcome, run.findings.length]);
+    canvas.current?.scrollTo({ top: canvas.current.scrollHeight, behavior: 'smooth' });
+  }, [run.findings.length, run.outcome, run.interrupt]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -137,6 +156,13 @@ export function App(): JSX.Element {
     void window.operator.run(goal, from && from !== 'about:blank' ? from : settings?.homeUrl);
   }, [attached, pendingGoal, settings?.homeUrl]);
 
+  /** Take the browser back to where a fact was read and outline it. */
+  const reveal = useCallback((finding: Finding) => {
+    setFocus(false);
+    void window.operator.reveal(finding.url, finding.ref);
+    canvas.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   const saveSettings = useCallback((partial: Partial<SettingsModel>) => {
     setSettings((current) => (current ? { ...current, ...partial } : current));
     void window.operator.saveSettings(partial);
@@ -149,92 +175,71 @@ export function App(): JSX.Element {
   }, []);
 
   const busy = isBusy(run.state);
-  const yours = run.interrupt?.kind === 'handoff';
 
   return (
-    <div className="app" data-state={run.state} data-focus={focus && started} data-started={started}
-      data-waiting={run.interrupt?.kind ?? ''}>
-      <div className="ambience" />
-
-      <header className="topbar">
-        <div className="brand"><span className="aperture" /> Operator</div>
+    <div
+      className="app"
+      data-state={run.state}
+      data-busy={busy}
+      data-focus={focus && started}
+      data-started={started}
+    >
+      <header className="bar">
+        <div className="wordmark"><span className="ring" /> Operator</div>
 
         {started && (
           <>
-            <button className="ghost" disabled={!nav.back} onClick={() => view.current?.goBack()} title="Back ⌘[">
+            <button className="icon" disabled={!nav.back} onClick={() => view.current?.goBack()} title="Back ⌘[">
               <Back />
             </button>
-            <button className="ghost" disabled={!nav.forward} onClick={() => view.current?.goForward()} title="Forward ⌘]">
+            <button className="icon" disabled={!nav.forward} onClick={() => view.current?.goForward()} title="Forward ⌘]">
               <Forward />
             </button>
-            <button className="ghost" onClick={() => view.current?.reload()} title="Reload ⌘R">
+            <button className="icon" onClick={() => view.current?.reload()} title="Reload ⌘R">
               <Reload />
             </button>
           </>
         )}
 
-        <div className="spacer" />
+        <div className="grow" />
         {url && (
-          <div className="locator" title={url}>
-            {url.startsWith('https://') && <span className="lock"><Lock /></span>}
+          <div className="address" title={url}>
+            {url.startsWith('https://') && <Lock />}
             {url.replace(/^https?:\/\//, '')}
           </div>
         )}
-        <div className="spacer" />
+        <div className="grow" />
 
         {started && (
           <button
-            className={`ghost ${focus ? 'on' : ''}`}
+            className={`icon ${focus ? 'on' : ''}`}
             onClick={() => setFocus((v) => !v)}
             title="Focus the page ⌘\"
           >
             {focus ? <Collapse /> : <Expand />}
           </button>
         )}
-        <button className="ghost" onClick={() => setShowSettings(true)} title="Settings ⌘,">
+        <button className="icon" onClick={() => setShowSettings(true)} title="Settings ⌘,">
           <Gear />
         </button>
+
+        <div className="progress" />
       </header>
 
       <main className="canvas" ref={canvas}>
-        <div className="canvas-inner">
+        <div className="inner">
           {started ? (
             <Stage
               src={viewSrc ?? 'about:blank'}
-              yours={yours}
+              yours={run.interrupt?.kind === 'handoff'}
               pointer={run.pointer}
               viewRef={view as never}
             />
           ) : (
-            <Welcome onPick={(text) => submit(text)} />
+            <Opening onPick={(text) => submit(text)} />
           )}
 
-          {started && (
-            <div className="thread">
-              {run.goal && <div className="ask">{run.goal}</div>}
-
-              {run.outcome && (
-                <div className="verdict" data-kind={run.outcome.kind}>{run.outcome.message}</div>
-              )}
-
-              {run.findings.length > 0 && (
-                <div className="found">
-                  {run.findings.map((f, i) => (
-                    <div className="found-row" key={i}>
-                      <span className="found-key">{f.query}</span>
-                      <span className="found-val">{format(f.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <Thread
-                steps={run.steps}
-                streaming={run.streaming}
-                thinking={run.state === 'thinking' || run.state === 'observing'}
-              />
-            </div>
-          )}
+          {started && run.goal && <Answer run={run} onReveal={reveal} />}
         </div>
       </main>
 
@@ -270,28 +275,23 @@ export function App(): JSX.Element {
   );
 }
 
-function Welcome({ onPick }: { onPick: (text: string) => void }): JSX.Element {
+function Opening({ onPick }: { onPick: (text: string) => void }): JSX.Element {
   return (
-    <div className="welcome">
-      <h1>The browser that <em>goes and does it</em>.</h1>
+    <div className="opening">
+      <h1>Ask for the outcome.<br /><span>Not the website.</span></h1>
       <p>
-        Say what you want rather than where to find it. Operator reads the page the
-        way you would, works through the steps, and stops to ask whenever the next
-        move is honestly yours to make.
+        Operator reads pages the way you do, works through the steps, and shows you
+        where every answer came from. It stops and asks whenever the next move is
+        honestly yours.
       </p>
-      <div className="seeds">
-        {SEEDS.map((seed) => (
-          <button className="seed" key={seed} onClick={() => onPick(seed)}>
-            <span>→</span><span>{seed}</span>
+      <div className="suggestions">
+        {SUGGESTIONS.map((text) => (
+          <button className="suggestion" key={text} onClick={() => onPick(text)}>
+            {text}
+            <Chevron />
           </button>
         ))}
       </div>
     </div>
   );
-}
-
-function format(value: unknown): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value === 'string') return value;
-  return JSON.stringify(value);
 }

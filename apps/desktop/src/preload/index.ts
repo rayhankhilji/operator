@@ -8,7 +8,10 @@ import type { AgentEvent } from '@operator/core';
  * no way to read the API key back out. The renderer can ask for a run and can
  * watch what happens; it cannot see the credential that makes the run possible.
  */
+export type Theme = 'light' | 'dark' | 'system';
+
 export interface Settings {
+  theme: Theme;
   model: string;
   homeUrl: string;
   confirmSideEffects: boolean;
@@ -27,6 +30,10 @@ const api = {
     ipcRenderer.invoke('view:attach', webContentsId),
 
   navigate: (url: string): Promise<boolean> => ipcRenderer.invoke('view:navigate', url),
+
+  /** Show where a recorded fact came from. */
+  reveal: (url: string, ref?: string): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('view:reveal', { url, ref }),
 
   getSettings: (): Promise<{ settings: Settings; hasApiKey: boolean; keyEncrypted: boolean }> =>
     ipcRenderer.invoke('settings:get'),

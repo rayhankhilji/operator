@@ -1,6 +1,6 @@
 import { useEffect, useRef, type JSX, type KeyboardEvent } from 'react';
 import { looksLikeUrl } from '../state.js';
-import { Send, Square } from './icons.js';
+import { Send, Stop } from './icons.js';
 
 /**
  * The one way in.
@@ -53,8 +53,8 @@ export function Composer({
     <div className="dock">
       <div className="composer-wrap" ref={wrap}>
         {trimmed.length > 0 && (
-          <span className="mode-hint">
-            {isUrl ? 'go straight there' : 'operator will work this out'}
+          <span className="reading">
+            {isUrl ? 'Go straight there' : 'Operator will work this out'}
           </span>
         )}
 
@@ -69,12 +69,12 @@ export function Composer({
           />
 
           {busy ? (
-            <button className="send" data-stop="true" onClick={onStop} title="Stop (Esc)">
-              <Square />
+            <button className="go" data-stop="true" onClick={onStop} title="Stop (Esc)">
+              <Stop />
             </button>
           ) : (
             <button
-              className="send"
+              className="go"
               data-ready={trimmed.length > 0}
               onClick={onSubmit}
               disabled={!trimmed}

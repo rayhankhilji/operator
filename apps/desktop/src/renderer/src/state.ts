@@ -16,6 +16,14 @@ export interface Interrupt {
   step?: Step;
 }
 
+/** A recorded fact, with the page it was read from. */
+export interface Finding {
+  query: string;
+  value: unknown;
+  url: string;
+  ref?: string;
+}
+
 /** Where the agent's pointer is, in the page's own viewport coordinates. */
 export interface PointerState {
   x: number;
@@ -34,7 +42,7 @@ export interface RunModel {
   /** Partial narration streaming in from the current model call. */
   streaming: string;
   interrupt: Interrupt | null;
-  findings: Array<{ query: string; value: unknown }>;
+  findings: Finding[];
   outcome: { kind: 'done' | 'failed'; message: string } | null;
   observed: { url: string; title: string; nodeCount: number } | null;
   pointer: PointerState | null;
@@ -118,7 +126,13 @@ export function reduce(model: RunModel, event: AgentEvent): RunModel {
       };
 
     case 'extracted':
-      return { ...model, findings: [...model.findings, { query: event.query, value: event.value }] };
+      return {
+        ...model,
+        findings: [
+          ...model.findings,
+          { query: event.query, value: event.value, url: event.url, ref: event.ref },
+        ],
+      };
 
     case 'run-failed':
       return { ...model, state: 'failed', interrupt: null, pointer: null, outcome: { kind: 'failed', message: event.reason } };

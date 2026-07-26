@@ -2,7 +2,11 @@ import { app, safeStorage } from 'electron';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
+export type Theme = 'light' | 'dark' | 'system';
+
 export interface Settings {
+  /** Light by design; dark and system are opt-in. */
+  theme: Theme;
   model: string;
   homeUrl: string;
   confirmSideEffects: boolean;
@@ -11,6 +15,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  theme: 'light',
   model: 'claude-opus-5',
   homeUrl: 'https://duckduckgo.com',
   confirmSideEffects: false,

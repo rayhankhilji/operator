@@ -205,7 +205,12 @@ export type AgentEvent =
    * watching it work is how you build any trust in it.
    */
   | { type: 'pointer'; x: number; y: number; kind: 'move' | 'click' | 'type'; label: string }
-  | { type: 'extracted'; query: string; value: unknown }
+  /**
+   * A recorded finding, with where it came from. Provenance is the whole point:
+   * an answer you cannot check is a rumour, so every fact carries the page it
+   * was read from and, where there was one, the element.
+   */
+  | { type: 'extracted'; query: string; value: unknown; url: string; ref?: Ref }
   | { type: 'run-finished'; summary: string; data?: unknown; steps: number }
   | { type: 'run-failed'; reason: string }
   | { type: 'log'; level: 'debug' | 'info' | 'warn' | 'error'; message: string };

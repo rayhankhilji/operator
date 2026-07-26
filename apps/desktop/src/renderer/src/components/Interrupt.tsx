@@ -29,16 +29,16 @@ function Confirm({
 }: { interrupt: InterruptModel; onConfirm: (ok: boolean) => void }): JSX.Element {
   return (
     <div className="interrupt" data-kind="confirm">
-      <div className="interrupt-tag"><Shield /> Your call</div>
+      <div className="interrupt-kind"><Shield /> Your call</div>
       <h3>{interrupt.summary}</h3>
       <p>
         Operator stopped because {interrupt.reason}. The page on the card above is
         the real one — check it there before you decide, rather than taking this
         summary at its word.
       </p>
-      <div className="choices">
-        <button className="btn btn-flame" onClick={() => onConfirm(true)}>Go ahead</button>
-        <button className="btn btn-quiet" onClick={() => onConfirm(false)}>Don&rsquo;t</button>
+      <div className="actions">
+        <button className="btn btn-light" onClick={() => onConfirm(true)}>Go ahead</button>
+        <button className="btn btn-outline" onClick={() => onConfirm(false)}>Don&rsquo;t</button>
       </div>
     </div>
   );
@@ -51,12 +51,12 @@ function Handoff({
 
   return (
     <div className="interrupt" data-kind="handoff">
-      <div className="interrupt-tag"><Hand /> Over to you</div>
+      <div className="interrupt-kind"><Hand /> Over to you</div>
       <h3>{headline(obstacle?.kind)}</h3>
       <p>{interrupt.reason}</p>
 
       {obstacle && obstacle.evidence.length > 0 && (
-        <div className="receipts">
+        <div className="evidence">
           {obstacle.evidence.map((line, i) => <span key={i}>{line}</span>)}
         </div>
       )}
@@ -68,8 +68,8 @@ function Handoff({
         carry on from wherever you left it.
       </p>
 
-      <div className="choices">
-        <button className="btn btn-tide" onClick={onResume}>Done — carry on</button>
+      <div className="actions">
+        <button className="btn btn-light" onClick={onResume}>Done — carry on</button>
       </div>
     </div>
   );

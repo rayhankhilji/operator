@@ -149,6 +149,13 @@ export const TOOLS: Anthropic.Tool[] = [
       properties: {
         query: { type: 'string', description: 'What this value is, e.g. "cheapest fare".' },
         value: { description: 'The value itself. Any JSON shape.' },
+        ref: {
+          type: 'string',
+          description:
+            'The ref of the element you read this from, when there is one. It lets ' +
+            'the person click the fact and be shown exactly where it came from, so ' +
+            'give it whenever the value is visible in a specific element.',
+        },
       },
       required: ['query', 'value'],
     },

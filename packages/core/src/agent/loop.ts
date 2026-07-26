@@ -424,9 +424,16 @@ export class OperatorAgent {
         // The model hands the value over directly. It read it off the page map
         // that is already in context, so going back to the page would only risk
         // reading something that has since changed.
-        const value = (decision.input as { value?: unknown }).value ?? null;
+        const input = decision.input as { value?: unknown; ref?: string };
+        const value = input.value ?? null;
         this.extracted[action.query] = value;
-        this.emit({ type: 'extracted', query: action.query, value });
+        this.emit({
+          type: 'extracted',
+          query: action.query,
+          value,
+          url: step.url,
+          ref: typeof input.ref === 'string' && input.ref ? input.ref : undefined,
+        });
         this.close(step, { ok: true, detail: `recorded ${action.query}`, pageChanged: false });
         this.pushToolResult(decision.toolUseId, `Recorded "${action.query}".`, true);
         return { kind: 'handled' };

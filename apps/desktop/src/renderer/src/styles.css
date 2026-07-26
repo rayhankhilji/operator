@@ -1,89 +1,71 @@
 /* ---------------------------------------------------------------------------
    Operator — visual language
 
-   The brief this design answers: an agent-first browser should not look like a
-   browser with a robot bolted to the side. A side panel next to a full-bleed
-   web view is the shape of an extension, and it reads as one no matter how it
-   is styled.
+   Two decisions carry the whole design.
 
-   So the structure is inverted. The conversation is the application. The web
-   page is a live artifact the agent works on in front of you — a card, held in
-   space, with the agent's pointer visibly moving across it. You watch it work,
-   and you talk to it underneath.
+   First: the interface is achromatic. Paper, ink, and hairlines — nothing else.
+   The live web page is the only colour in the window, which is exactly right,
+   because the page is the subject and the software is not. It also means the
+   interface never fights whatever site you happen to be on. State is carried by
+   contrast, weight and motion rather than by hue, so nothing has to be tinted
+   to be understood, and nothing reads as decoration.
 
-   Three rules:
+   Second: this is not a chat log. A transcript makes you read everything to
+   find the one thing you wanted. So the surface is answer-first — what you
+   asked, what the answer is, the facts behind it with the page each was read
+   from, and the working folded away underneath until you ask for it.
 
-   1. Warmth. Warm charcoal and ivory, not blue-black and grey. This is a
-      reading surface, not a terminal.
-   2. One voice per register. A serif carries the agent's words, a tight sans
-      carries the interface, a mono carries machine detail. You always know
-      who is speaking.
-   3. Colour is reserved for agency. Orange is the agent moving, or about to do
-      something consequential it wants signing off. Teal is the page being
-      handed to you. Lime is done. Nothing decorative is ever coloured.
-
-      The two waiting states are deliberately different hues, because they ask
-      different things: a handoff wants you to go and do something, while a
-      confirmation wants a judgement about something with consequences. Letting
-      both read as "your turn" teal put a teal status light above an orange
-      card, which is just a system disagreeing with itself.
+   Type is the system stack at display weights and tight tracking. On a Mac that
+   is SF Pro, which is the right typeface for this and needs no shipping.
 --------------------------------------------------------------------------- */
 
 :root {
-  /* Warm neutral ramp — every surface has a little red in it. */
-  --ink: #0c0b0a;
-  --ink-1: #131110;
-  --ink-2: #1a1817;
-  --ink-3: #241f1d;
-  --ink-4: #322b28;
+  --paper: #fcfcfb;
+  --surface: #ffffff;
+  --raised: #f6f6f4;
+  --sunken: #efeeec;
 
-  --bone: #f4f0ea;
-  --bone-dim: #a8a09a;
-  --bone-faint: #6d6560;
+  --ink: #14140f;
+  --ink-2: #4a4a44;
+  --ink-3: #86867e;
+  --ink-4: #b4b4ac;
 
-  --line: rgba(244, 240, 234, 0.07);
-  --line-2: rgba(244, 240, 234, 0.13);
+  --hair: rgba(20, 20, 15, 0.07);
+  --hair-2: rgba(20, 20, 15, 0.13);
+  --hair-3: rgba(20, 20, 15, 0.22);
 
-  /* Agency */
-  --flame: #ff5f1f;        /* the agent, acting */
-  --flame-soft: rgba(255, 95, 31, 0.14);
-  --flame-line: rgba(255, 95, 31, 0.4);
+  /* Inverted surfaces do the work colour would otherwise do. */
+  --deep: #16160f;
+  --deep-2: #24241c;
+  --on-deep: #ffffff;
 
-  --tide: #5eead4;         /* your turn */
-  --tide-soft: rgba(94, 234, 212, 0.13);
-  --tide-line: rgba(94, 234, 212, 0.42);
-
-  --leaf: #a3e635;         /* done */
-  --leaf-soft: rgba(163, 230, 53, 0.13);
-
-  --rust: #ff5d5d;         /* failed */
-  --rust-soft: rgba(255, 93, 93, 0.13);
-
-  --serif: ui-serif, 'New York', 'Iowan Old Style', 'Palatino', Georgia, serif;
-  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+          'Helvetica Neue', Inter, system-ui, sans-serif;
   --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
   --spring: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
 
-  --r-sm: 9px;
+  --r-xs: 6px;
+  --r-sm: 10px;
   --r: 14px;
-  --r-lg: 22px;
-  --r-xl: 30px;
+  --r-lg: 20px;
+  --r-xl: 28px;
 
-  --column: 660px;
+  --column: 700px;
+  --bar: 52px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 
 body {
-  background: var(--ink);
-  color: var(--bone);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--sans);
   font-size: 14px;
-  line-height: 1.55;
-  letter-spacing: -0.006em;
+  line-height: 1.5;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
   user-select: none;
@@ -91,17 +73,17 @@ body {
 
 button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
 input, textarea, select { font: inherit; color: inherit; background: none; border: none; outline: none; }
-::selection { background: var(--flame-soft); }
+::selection { background: rgba(20, 20, 15, 0.12); }
 
-::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(244, 240, 234, 0.1);
+  background: var(--hair-2);
   border-radius: 99px;
-  border: 3px solid transparent;
+  border: 4px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(244, 240, 234, 0.22); background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--hair-3); background-clip: content-box; }
 
 /* ===========================================================================
    Shell
@@ -109,219 +91,194 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
 
 .app {
   display: grid;
-  grid-template-rows: 52px 1fr;
+  grid-template-rows: var(--bar) 1fr;
   height: 100%;
   position: relative;
-  isolation: isolate;
 }
-
-/* An ambient field behind everything that takes the colour of the agent's
-   state. It is barely visible, and doing the work of telling you what is
-   happening before you have read a single word. */
-.ambience {
-  position: fixed;
-  inset: -30% -10% auto -10%;
-  height: 70vh;
-  z-index: -1;
-  pointer-events: none;
-  background: radial-gradient(50% 60% at 50% 0%, var(--glow, transparent), transparent 72%);
-  opacity: 0.5;
-  transition: background 900ms var(--ease), opacity 900ms var(--ease);
-}
-
-.app[data-state='thinking'],
-.app[data-state='acting'],
-.app[data-state='observing'] { --glow: rgba(255, 95, 31, 0.3); }
-.app[data-state='awaiting-human'] { --glow: rgba(94, 234, 212, 0.28); }
-.app[data-state='done'] { --glow: rgba(163, 230, 53, 0.2); }
-.app[data-state='failed'], .app[data-state='cancelled'] { --glow: rgba(255, 93, 93, 0.18); }
 
 /* ===========================================================================
-   Top bar
+   Bar
    =========================================================================== */
 
-.topbar {
+.bar {
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 18px 0 86px;
+  gap: 10px;
+  padding: 0 16px 0 84px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--paper);
   position: relative;
-  z-index: 10;
+  z-index: 20;
 }
 
-.topbar > * { -webkit-app-region: no-drag; }
+.bar > * { -webkit-app-region: no-drag; }
 
-.brand {
+.wordmark {
+  font-size: 13px;
+  font-weight: 590;
+  letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: 13px;
-  font-weight: 560;
-  letter-spacing: -0.02em;
-  color: var(--bone-dim);
+  gap: 8px;
 }
 
-/* The mark is an aperture: a ring that contracts while the agent thinks. */
-.aperture {
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  border: 2px solid var(--bone-faint);
-  position: relative;
+/* A ring that closes while the agent works. No colour, just motion. */
+.ring {
+  width: 13px;
+  height: 13px;
   flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-4);
+  position: relative;
   transition: border-color 400ms var(--ease);
 }
 
-.aperture::after {
+.ring::after {
   content: '';
   position: absolute;
-  inset: 3px;
+  inset: 2.5px;
   border-radius: 50%;
-  background: var(--bone-faint);
-  transition: background 400ms var(--ease), transform 500ms var(--spring);
+  background: var(--ink);
+  transform: scale(0);
+  transition: transform 400ms var(--spring);
 }
 
-.app[data-state='thinking'] .aperture,
-.app[data-state='acting'] .aperture,
-.app[data-state='observing'] .aperture { border-color: var(--flame); }
+.app[data-busy='true'] .ring { border-color: var(--ink); }
+.app[data-busy='true'] .ring::after { animation: pulse 1.7s var(--ease) infinite; }
+.app[data-state='awaiting-human'] .ring { border-color: var(--ink); }
+.app[data-state='awaiting-human'] .ring::after { transform: scale(1); }
+.app[data-state='done'] .ring { border-color: var(--ink-3); }
+.app[data-state='done'] .ring::after { transform: scale(1); background: var(--ink-3); }
 
-.app[data-state='thinking'] .aperture::after,
-.app[data-state='acting'] .aperture::after,
-.app[data-state='observing'] .aperture::after {
-  background: var(--flame);
-  animation: iris 1.8s var(--ease) infinite;
+@keyframes pulse {
+  0%, 100% { transform: scale(0.25); }
+  50% { transform: scale(1); }
 }
 
-.app[data-state='awaiting-human'] .aperture { border-color: var(--tide); }
-.app[data-state='awaiting-human'] .aperture::after { background: var(--tide); }
+.grow { flex: 1; }
 
-/* A confirmation is a different kind of waiting from a handoff — see the note
-   at the top. Placed after the rules above so source order carries it. */
-.app[data-waiting='confirm'] { --glow: rgba(255, 95, 31, 0.28); }
-.app[data-waiting='confirm'] .aperture { border-color: var(--flame); }
-.app[data-waiting='confirm'] .aperture::after { background: var(--flame); animation: none; }
-.app[data-state='done'] .aperture { border-color: var(--leaf); }
-.app[data-state='done'] .aperture::after { background: var(--leaf); }
-
-@keyframes iris {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(0.35); }
-}
-
-.spacer { flex: 1; }
-
-/* The address is information, not a control — small, quiet, centred. */
-.locator {
+.address {
   display: flex;
   align-items: center;
-  gap: 7px;
-  max-width: 46ch;
-  padding: 5px 12px;
-  border-radius: 99px;
-  background: rgba(244, 240, 234, 0.04);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--bone-faint);
+  gap: 6px;
+  max-width: 52ch;
+  height: 27px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 200ms var(--ease), background 200ms var(--ease);
+  letter-spacing: -0.005em;
+  transition: background 180ms var(--ease), color 180ms var(--ease);
 }
 
-.locator:hover { color: var(--bone-dim); background: rgba(244, 240, 234, 0.07); }
-.locator .lock { color: var(--leaf); font-size: 9px; }
+.address:hover { background: var(--raised); color: var(--ink-2); }
+.address svg { flex: none; opacity: 0.45; }
 
-.ghost {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r-sm);
+.icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   display: grid;
   place-items: center;
-  color: var(--bone-faint);
-  transition: background 150ms var(--ease), color 150ms var(--ease);
+  color: var(--ink-3);
+  flex: none;
+  transition: background 160ms var(--ease), color 160ms var(--ease);
 }
 
-.ghost:hover:not(:disabled) { background: rgba(244, 240, 234, 0.07); color: var(--bone); }
-.ghost:disabled { opacity: 0.25; cursor: default; }
-.ghost.on { color: var(--flame); background: var(--flame-soft); }
+.icon:hover:not(:disabled) { background: var(--raised); color: var(--ink); }
+.icon:disabled { opacity: 0.26; cursor: default; }
+.icon.on { background: var(--deep); color: var(--on-deep); }
+
+/* A hairline that runs while the agent works — the only activity indicator in
+   the app, and it costs no colour. */
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 300ms var(--ease);
+}
+
+.app[data-busy='true'] .progress { opacity: 1; }
+
+.progress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--ink), transparent);
+  transform: translateX(-100%);
+  animation: sweep 1.5s var(--ease) infinite;
+}
+
+@keyframes sweep { to { transform: translateX(100%); } }
 
 /* ===========================================================================
-   Canvas — the page card and the thread share one scroll
+   Canvas
    =========================================================================== */
 
-.canvas {
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: relative;
-  scroll-behavior: smooth;
-}
+.canvas { overflow-y: auto; overflow-x: hidden; position: relative; }
 
-.canvas-inner {
+.inner {
   min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 24px 190px;
+  padding: 22px 24px 188px;
 }
 
-/* --- the page, as an artifact ------------------------------------------- */
+.app[data-started='false'] .inner { justify-content: center; padding-bottom: 150px; }
 
-/* Sized as an artifact, not a viewport. The page has to be big enough to read
-   and small enough that the conversation underneath is still the main event —
-   at full width it crowds the thread off the screen entirely, which turns the
-   design back into the browser-with-a-panel it exists to avoid. Press the focus
-   key when the page itself is what you want. */
+/* --- the page, held as an object ----------------------------------------- */
+
 .stage {
-  width: min(860px, 100%);
-  margin: 6px auto 22px;
+  width: min(940px, 100%);
+  margin: 0 auto 30px;
   position: relative;
-  transition: width 520ms var(--spring), margin 520ms var(--spring);
+  transition: width 560ms var(--spring);
 }
 
-.card {
+.paper {
   position: relative;
   border-radius: var(--r-lg);
   overflow: hidden;
-  background: #fff;
-  aspect-ratio: 16 / 9;
+  background: var(--surface);
+  aspect-ratio: 16 / 10;
   box-shadow:
-    0 0 0 1px var(--line-2),
-    0 30px 70px -20px rgba(0, 0, 0, 0.75),
-    0 4px 14px rgba(0, 0, 0, 0.4);
-  transition: box-shadow 520ms var(--ease), transform 520ms var(--spring);
-  animation: arrive 620ms var(--spring) both;
+    0 0 0 1px var(--hair-2),
+    0 1px 2px rgba(20, 20, 15, 0.04),
+    0 12px 28px -8px rgba(20, 20, 15, 0.13),
+    0 34px 60px -24px rgba(20, 20, 15, 0.16);
+  transition: box-shadow 560ms var(--ease);
+  animation: settle 640ms var(--spring) both;
 }
 
-@keyframes arrive {
-  from { opacity: 0; transform: translateY(22px) scale(0.975); }
+@keyframes settle {
+  from { opacity: 0; transform: translateY(16px) scale(0.99); }
   to { opacity: 1; transform: none; }
 }
 
-.card webview { width: 100%; height: 100%; display: block; border: 0; background: #fff; }
+.paper webview { width: 100%; height: 100%; display: block; border: 0; background: #fff; }
 
-/* While the person is driving, the card is ringed and lifted. */
-.stage[data-yours='true'] .card {
+/* While the person is driving, the object is lifted and darkly outlined —
+   unmistakable, and still achromatic. */
+.stage[data-yours='true'] .paper {
   box-shadow:
-    0 0 0 2px var(--tide),
-    0 0 0 9px var(--tide-soft),
-    0 34px 80px -18px rgba(0, 0, 0, 0.8);
+    0 0 0 2px var(--ink),
+    0 0 0 8px rgba(20, 20, 15, 0.06),
+    0 26px 60px -16px rgba(20, 20, 15, 0.28);
 }
 
-/* Focus mode: the artifact takes the room.
-
-   Sized by filling the space rather than by subtracting from 100vh — the
-   arithmetic version has to know the height of the bar, the margins and the
-   dock, and gets it wrong the moment any of them change, leaving the card
-   scrolled with its top edge cut off. */
 .app[data-focus='true'] .canvas { overflow: hidden; }
-.app[data-focus='true'] .canvas-inner {
-  height: 100%;
-  padding: 0 24px 104px;
-  justify-content: flex-start;
-}
+.app[data-focus='true'] .inner { height: 100%; padding: 14px 24px 100px; justify-content: flex-start; }
 .app[data-focus='true'] .stage { width: 100%; height: 100%; margin: 0; }
-.app[data-focus='true'] .card { aspect-ratio: auto; height: 100%; }
+.app[data-focus='true'] .paper { aspect-ratio: auto; height: 100%; }
 
 /* --- the agent's pointer -------------------------------------------------- */
 
@@ -329,10 +286,10 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
 
 .pointer {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
-  transition: transform 480ms var(--spring), opacity 300ms var(--ease);
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  transition: transform 500ms var(--spring);
   will-change: transform;
 }
 
@@ -341,361 +298,383 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: var(--flame);
-  box-shadow: 0 0 0 3px rgba(255, 95, 31, 0.28), 0 2px 10px rgba(255, 95, 31, 0.55);
+  background: var(--ink);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
-/* The ring that fires outward on a click — the moment you see it act. */
 .ripple {
   position: absolute;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -7px;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
   border-radius: 50%;
-  border: 2px solid var(--flame);
-  animation: ripple 620ms var(--ease) forwards;
-  pointer-events: none;
+  border: 1.5px solid var(--ink);
+  animation: ripple 640ms var(--ease) forwards;
 }
 
 @keyframes ripple {
-  from { transform: scale(1); opacity: 0.9; }
-  to { transform: scale(5.5); opacity: 0; }
+  from { transform: scale(1); opacity: 0.85; }
+  to { transform: scale(6); opacity: 0; }
 }
 
-.pointer-label {
+.pointer-tag {
   position: absolute;
-  top: 16px;
-  left: 12px;
+  top: 15px;
+  left: 11px;
   white-space: nowrap;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(12, 11, 10, 0.9);
-  color: var(--bone);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: var(--deep);
+  color: var(--on-deep);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
-
-/* --- welcome -------------------------------------------------------------- */
-
-/* Before there is a page, the invitation owns the window and sits on the
-   optical centre rather than clinging to the top. */
-.app[data-started='false'] .canvas-inner { justify-content: center; padding-bottom: 150px; }
-
-.welcome {
-  width: min(var(--column), 100%);
-  margin: 0 auto;
-  text-align: center;
-  animation: arrive 700ms var(--spring) both;
-}
-
-.welcome h1 {
-  font-family: var(--serif);
-  font-size: 42px;
-  line-height: 1.12;
-  font-weight: 400;
-  letter-spacing: -0.022em;
-  margin-bottom: 16px;
-}
-
-.welcome h1 em {
-  font-style: italic;
-  color: var(--flame);
-}
-
-.welcome p {
-  font-size: 15px;
-  color: var(--bone-dim);
-  max-width: 46ch;
-  margin: 0 auto 30px;
-  line-height: 1.62;
-}
-
-.seeds { display: flex; flex-direction: column; gap: 7px; text-align: left; }
-
-.seed {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 16px;
-  border-radius: var(--r);
-  background: var(--ink-1);
-  border: 1px solid var(--line);
-  color: var(--bone-dim);
-  font-size: 13.5px;
-  transition: all 200ms var(--ease);
-}
-
-.seed:hover {
-  background: var(--ink-2);
-  border-color: var(--flame-line);
-  color: var(--bone);
-  transform: translateX(3px);
-}
-
-.seed span:first-child { color: var(--flame); font-size: 11px; opacity: 0.7; }
 
 /* ===========================================================================
-   Thread
+   Opening
    =========================================================================== */
 
-.thread {
+.opening {
   width: min(var(--column), 100%);
+  margin: 0 auto;
+  animation: settle 720ms var(--spring) both;
+}
+
+.opening h1 {
+  font-size: 46px;
+  line-height: 1.06;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  margin-bottom: 14px;
+}
+
+.opening h1 span { color: var(--ink-4); }
+
+.opening p {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 50ch;
+  margin-bottom: 34px;
+  letter-spacing: -0.012em;
+}
+
+.suggestions { display: flex; flex-direction: column; }
+
+.suggestion {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 4px 15px 2px;
+  border-top: 1px solid var(--hair);
+  color: var(--ink-2);
+  font-size: 14.5px;
+  letter-spacing: -0.012em;
+  text-align: left;
+  transition: color 180ms var(--ease), padding 260ms var(--spring);
 }
 
-.app[data-focus='true'] .thread { display: none; }
+.suggestion:last-child { border-bottom: 1px solid var(--hair); }
+.suggestion:hover { color: var(--ink); padding-left: 8px; }
+.suggestion svg { flex: none; opacity: 0; transform: translateX(-4px); transition: all 260ms var(--spring); }
+.suggestion:hover svg { opacity: 0.45; transform: none; }
 
-/* What you asked for, in your own words, in the agent's voice register. */
-.ask {
-  font-family: var(--serif);
-  font-size: 23px;
-  line-height: 1.34;
-  letter-spacing: -0.014em;
-  margin: 6px 0 22px;
-  user-select: text;
-  animation: arrive 500ms var(--spring) both;
+/* ===========================================================================
+   Answer surface — what you asked, what it found, what it did
+   =========================================================================== */
+
+.answer { width: min(var(--column), 100%); }
+.app[data-focus='true'] .answer { display: none; }
+
+.asked {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: -0.008em;
+  margin-bottom: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.beat {
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 13px;
-  padding: 7px 0;
-  animation: beat-in 480ms var(--spring) both;
-}
-
-@keyframes beat-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-
-.beat-rail { position: relative; display: flex; justify-content: center; padding-top: 6px; }
-
-.beat-dot {
-  width: 7px;
-  height: 7px;
+.asked::before {
+  content: '';
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: var(--ink-4);
   flex: none;
-  z-index: 1;
-  transition: background 300ms var(--ease), box-shadow 300ms var(--ease);
 }
 
-.beat:not(:last-child) .beat-rail::after {
-  content: '';
-  position: absolute;
-  top: 15px;
-  bottom: -13px;
-  width: 1px;
-  background: var(--line-2);
+.headline {
+  font-size: 27px;
+  line-height: 1.26;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  margin-bottom: 26px;
+  user-select: text;
+  animation: settle 520ms var(--spring) both;
 }
 
-.beat[data-tone='ok'] .beat-dot { background: var(--bone-faint); }
-.beat[data-tone='live'] .beat-dot {
-  background: var(--flame);
-  box-shadow: 0 0 0 4px var(--flame-soft);
-  animation: throb 1.5s var(--ease) infinite;
-}
-.beat[data-tone='error'] .beat-dot { background: var(--rust); }
-.beat[data-tone='human'] .beat-dot { background: var(--tide); box-shadow: 0 0 0 4px var(--tide-soft); }
-.beat[data-tone='found'] .beat-dot { background: var(--leaf); }
-
-@keyframes throb {
-  0%, 100% { box-shadow: 0 0 0 4px var(--flame-soft); }
-  50% { box-shadow: 0 0 0 8px rgba(255, 95, 31, 0.06); }
+.resolution {
+  font-size: 19px;
+  line-height: 1.48;
+  font-weight: 480;
+  letter-spacing: -0.019em;
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--hair);
+  user-select: text;
+  animation: settle 560ms var(--spring) both;
 }
 
-.beat-said {
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--bone);
+.resolution[data-kind='failed'] { color: var(--ink-2); }
+
+/* --- facts, with provenance ---------------------------------------------- */
+
+.facts { border-top: 1px solid var(--hair); }
+
+.fact {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 20px;
+  width: 100%;
+  padding: 15px 4px 15px 2px;
+  border-bottom: 1px solid var(--hair);
+  text-align: left;
+  transition: padding 260ms var(--spring), background 180ms var(--ease);
+  animation: settle 500ms var(--spring) both;
+}
+
+.fact:hover { background: var(--raised); padding-left: 10px; padding-right: 10px; }
+
+.fact-key {
+  font-size: 13.5px;
+  color: var(--ink-3);
+  letter-spacing: -0.008em;
   user-select: text;
 }
 
-.beat[data-tone='ok'] .beat-said { color: var(--bone-dim); }
-
-.beat-did {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--bone-faint);
-  margin-top: 3px;
+.fact-value {
+  font-size: 15px;
+  font-weight: 550;
+  letter-spacing: -0.016em;
+  text-align: right;
   word-break: break-word;
   user-select: text;
 }
 
-.beat[data-tone='error'] .beat-did { color: #e08b8b; }
+.fact-source {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  height: 0;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: all 240ms var(--spring);
+}
 
-/* The streaming thought, set in the serif — this is the agent talking. */
+.fact:hover .fact-source { opacity: 1; transform: none; height: auto; margin-top: 6px; }
+
+/* --- the working, folded away -------------------------------------------- */
+
+.working { margin-top: 24px; }
+
+.working-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: -0.008em;
+  padding: 8px 0;
+  transition: color 180ms var(--ease);
+}
+
+.working-toggle:hover { color: var(--ink); }
+.working-toggle svg { transition: transform 300ms var(--spring); }
+.working-toggle[data-open='true'] svg { transform: rotate(90deg); }
+
+.steps { padding-top: 6px; animation: unfold 420ms var(--spring) both; }
+
+@keyframes unfold {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  gap: 12px;
+  padding: 7px 0;
+  animation: settle 420ms var(--spring) both;
+}
+
+.step-mark { position: relative; display: flex; justify-content: center; padding-top: 7px; }
+
+.step-mark::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  z-index: 1;
+}
+
+.step:not(:last-child) .step-mark::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: -14px;
+  width: 1px;
+  background: var(--hair-2);
+}
+
+.step[data-tone='live'] .step-mark::before { background: var(--ink); animation: blink 1.4s var(--ease) infinite; }
+.step[data-tone='error'] .step-mark::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.step[data-tone='human'] .step-mark::before { background: var(--ink); }
+
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.step-said { font-size: 13.5px; color: var(--ink-2); letter-spacing: -0.01em; user-select: text; }
+.step[data-tone='live'] .step-said { color: var(--ink); }
+
+.step-did {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 2px;
+  word-break: break-word;
+  letter-spacing: -0.01em;
+  user-select: text;
+}
+
 .murmur {
-  font-family: var(--serif);
-  font-size: 16px;
-  line-height: 1.55;
-  color: var(--bone-dim);
-  padding: 4px 0 4px 31px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-3);
+  padding: 4px 0 4px 27px;
+  letter-spacing: -0.011em;
   user-select: text;
 }
 
 .murmur::after {
   content: '';
   display: inline-block;
-  width: 7px;
-  height: 15px;
+  width: 2px;
+  height: 14px;
   margin-left: 3px;
   vertical-align: -2px;
-  background: var(--flame);
-  animation: cursor 1.05s steps(1) infinite;
+  background: var(--ink);
+  animation: caret 1.05s steps(1) infinite;
 }
 
-@keyframes cursor { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-
-/* --- findings and outcome ------------------------------------------------- */
-
-.found {
-  margin: 16px 0 6px;
-  border-radius: var(--r);
-  border: 1px solid var(--line-2);
-  overflow: hidden;
-  animation: arrive 500ms var(--spring) both;
-}
-
-.found-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 18px;
-  padding: 12px 15px;
-  background: var(--ink-1);
-  user-select: text;
-}
-
-.found-row + .found-row { border-top: 1px solid var(--line); }
-.found-key { font-size: 12.5px; color: var(--bone-dim); flex: none; }
-.found-val {
-  font-family: var(--mono);
-  font-size: 12.5px;
-  color: var(--leaf);
-  text-align: right;
-  word-break: break-word;
-}
-
-.verdict {
-  margin: 18px 0 6px;
-  padding: 17px 19px;
-  border-radius: var(--r);
-  font-family: var(--serif);
-  font-size: 17px;
-  line-height: 1.5;
-  user-select: text;
-  animation: arrive 520ms var(--spring) both;
-}
-
-.verdict[data-kind='done'] { background: var(--leaf-soft); border: 1px solid rgba(163, 230, 53, 0.26); }
-.verdict[data-kind='failed'] { background: var(--rust-soft); border: 1px solid rgba(255, 93, 93, 0.26); }
+@keyframes caret { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 
 /* ===========================================================================
-   Interrupts
+   Interrupts — inverted, because attention is contrast, not colour
    =========================================================================== */
 
-/* Pinned above the composer rather than buried in the thread.
-   An interrupt is the most important thing on screen the moment it appears, and
-   its action must never be a scroll away — least of all during a handoff, when
-   the page above is exactly what the person needs to be working in. */
 .interrupt {
   position: fixed;
   left: 50%;
+  bottom: 98px;
   transform: translateX(-50%);
-  bottom: 96px;
   width: min(var(--column), calc(100% - 48px));
-  z-index: 25;
-  box-shadow: 0 24px 60px -14px rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(20px) saturate(140%);
-  background: linear-gradient(168deg, rgba(94, 234, 212, 0.16), rgba(19, 17, 16, 0.94) 62%);
+  z-index: 30;
+  background: var(--deep);
+  color: var(--on-deep);
   border-radius: var(--r-lg);
-  padding: 20px;
-  border: 1px solid var(--tide-line);
-  /* Needs its own keyframes: `arrive` finishes on `transform: none`, which
-     would wipe out the translateX(-50%) doing the centring here. */
-  animation: arrive-centred 560ms var(--spring) both;
+  padding: 22px;
+  box-shadow: 0 20px 50px -12px rgba(20, 20, 15, 0.4), 0 4px 12px rgba(20, 20, 15, 0.14);
+  /* Own keyframes: `settle` ends on transform:none, which would undo the
+     translateX(-50%) that centres this. */
+  animation: settle-centred 540ms var(--spring) both;
 }
 
-@keyframes arrive-centred {
-  from { opacity: 0; transform: translateX(-50%) translateY(18px) scale(0.98); }
+@keyframes settle-centred {
+  from { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.99); }
   to { opacity: 1; transform: translateX(-50%); }
 }
 
-.interrupt[data-kind='confirm'] {
-  background: linear-gradient(168deg, rgba(255, 95, 31, 0.16), rgba(19, 17, 16, 0.94) 62%);
-  border-color: var(--flame-line);
-}
-
-.interrupt-tag {
-  display: inline-flex;
+.interrupt-kind {
+  font-size: 10.5px;
+  font-weight: 620;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10.5px;
-  font-weight: 640;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--tide);
-  margin-bottom: 12px;
+  margin-bottom: 13px;
 }
 
-.interrupt[data-kind='confirm'] .interrupt-tag { color: var(--flame); }
-
 .interrupt h3 {
-  font-family: var(--serif);
-  font-size: 21px;
-  font-weight: 400;
+  font-size: 20px;
   line-height: 1.32;
-  letter-spacing: -0.012em;
+  font-weight: 590;
+  letter-spacing: -0.024em;
   margin-bottom: 9px;
   user-select: text;
 }
 
-.interrupt p { font-size: 13.5px; color: var(--bone-dim); line-height: 1.6; user-select: text; }
-.interrupt p + p { margin-top: 10px; }
+.interrupt p {
+  font-size: 13.5px;
+  line-height: 1.58;
+  opacity: 0.68;
+  letter-spacing: -0.009em;
+  user-select: text;
+}
 
-.receipts {
+.interrupt p + p { margin-top: 9px; }
+
+.evidence {
   margin-top: 13px;
   padding: 11px 13px;
-  border-radius: var(--r-sm);
-  background: rgba(0, 0, 0, 0.32);
+  border-radius: var(--r-xs);
+  background: rgba(255, 255, 255, 0.07);
   font-family: var(--mono);
   font-size: 10.5px;
-  color: var(--bone-faint);
+  opacity: 0.55;
   display: flex;
   flex-direction: column;
   gap: 4px;
   user-select: text;
 }
 
-.choices { display: flex; gap: 9px; margin-top: 18px; }
+.actions { display: flex; gap: 8px; margin-top: 19px; }
 
 .btn {
-  height: 38px;
-  padding: 0 20px;
-  border-radius: var(--r-sm);
+  height: 37px;
+  padding: 0 19px;
+  border-radius: 9px;
   font-size: 13.5px;
-  font-weight: 560;
-  letter-spacing: -0.008em;
-  transition: all 170ms var(--ease);
+  font-weight: 550;
+  letter-spacing: -0.012em;
   border: 1px solid transparent;
+  white-space: nowrap;
+  transition: all 180ms var(--ease);
 }
 
-.btn-tide { background: var(--tide); color: #04231f; }
-.btn-tide:hover { background: #7ff0dd; box-shadow: 0 4px 18px rgba(94, 234, 212, 0.3); transform: translateY(-1px); }
+.btn-light { background: var(--on-deep); color: var(--deep); }
+.btn-light:hover { opacity: 0.88; transform: translateY(-1px); }
 
-.btn-flame { background: var(--flame); color: #200a02; }
-.btn-flame:hover { background: #ff7742; box-shadow: 0 4px 18px rgba(255, 95, 31, 0.32); transform: translateY(-1px); }
+.btn-outline { background: transparent; opacity: 0.72; border-color: currentColor; }
+.btn-outline:hover { opacity: 1; }
 
-.btn-quiet { background: transparent; color: var(--bone-dim); border-color: var(--line-2); }
-.btn-quiet:hover { color: var(--bone); border-color: rgba(244, 240, 234, 0.26); }
+.btn-dark { background: var(--deep); color: var(--on-deep); }
+.btn-dark:hover { background: var(--deep-2); transform: translateY(-1px); }
 
 /* ===========================================================================
-   Composer — always there, always the way in
+   Composer
    =========================================================================== */
 
 .dock {
@@ -703,79 +682,70 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 0 24px 24px;
+  padding: 44px 24px 24px;
   display: flex;
   justify-content: center;
-  z-index: 20;
+  z-index: 25;
   pointer-events: none;
-  background: linear-gradient(transparent, var(--ink) 46%);
-  padding-top: 44px;
+  background: linear-gradient(transparent, var(--paper) 48%);
 }
 
+.composer-wrap { position: relative; width: min(var(--column), 100%); pointer-events: auto; }
+
 .composer {
-  pointer-events: auto;
-  width: min(var(--column), 100%);
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  padding: 11px 11px 11px 18px;
+  padding: 9px 9px 9px 17px;
   border-radius: var(--r-xl);
-  background: rgba(26, 24, 23, 0.86);
-  backdrop-filter: blur(22px) saturate(150%);
-  border: 1px solid var(--line-2);
-  box-shadow: 0 18px 44px -12px rgba(0, 0, 0, 0.7);
-  transition: border-color 220ms var(--ease), box-shadow 220ms var(--ease), transform 220ms var(--spring);
+  background: var(--surface);
+  border: 1px solid var(--hair-2);
+  box-shadow: 0 1px 2px rgba(20, 20, 15, 0.04), 0 10px 30px -8px rgba(20, 20, 15, 0.12);
+  transition: border-color 220ms var(--ease), box-shadow 220ms var(--ease);
 }
 
 .composer:focus-within {
-  border-color: var(--flame-line);
-  box-shadow: 0 0 0 4px var(--flame-soft), 0 18px 44px -12px rgba(0, 0, 0, 0.7);
+  border-color: var(--hair-3);
+  box-shadow: 0 1px 2px rgba(20, 20, 15, 0.04), 0 14px 38px -8px rgba(20, 20, 15, 0.18);
 }
 
 .composer textarea {
   flex: 1;
   resize: none;
-  max-height: 160px;
+  max-height: 168px;
   padding: 8px 0;
-  font-size: 14.5px;
+  font-size: 15px;
   line-height: 1.5;
+  letter-spacing: -0.013em;
   user-select: text;
 }
 
-.composer textarea::placeholder { color: var(--bone-faint); }
+.composer textarea::placeholder { color: var(--ink-4); }
 
-.send {
-  width: 36px;
-  height: 36px;
+.go {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--ink-4);
-  color: var(--bone-faint);
+  background: var(--sunken);
+  color: var(--ink-4);
   flex: none;
-  transition: all 200ms var(--spring);
+  transition: all 220ms var(--spring);
 }
 
-.send[data-ready='true'] { background: var(--flame); color: #200a02; }
-.send[data-ready='true']:hover { transform: scale(1.07); box-shadow: 0 4px 16px rgba(255, 95, 31, 0.4); }
-.send[data-stop='true'] { background: var(--rust-soft); color: var(--rust); }
+.go[data-ready='true'], .go[data-stop='true'] { background: var(--deep); color: var(--on-deep); }
+.go[data-ready='true']:hover { transform: scale(1.06); }
 
-/* The mode hint sits inside the composer, not as a chip shouting at you. */
-.mode-hint {
+.reading {
   position: absolute;
-  bottom: calc(100% + 9px);
-  left: 20px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--bone-faint);
-  background: rgba(26, 24, 23, 0.9);
-  padding: 4px 9px;
-  border-radius: 6px;
-  border: 1px solid var(--line);
-  animation: arrive 300ms var(--spring) both;
+  bottom: calc(100% + 8px);
+  left: 18px;
+  font-size: 11.5px;
+  color: var(--ink-4);
+  letter-spacing: -0.006em;
+  animation: settle 260ms var(--spring) both;
 }
-
-.composer-wrap { position: relative; width: min(var(--column), 100%); display: flex; pointer-events: auto; }
 
 /* ===========================================================================
    Settings
@@ -784,118 +754,128 @@ input, textarea, select { font: inherit; color: inherit; background: none; borde
 .veil {
   position: fixed;
   inset: 0;
-  background: rgba(6, 5, 5, 0.72);
-  backdrop-filter: blur(14px);
+  background: rgba(20, 20, 15, 0.28);
   display: grid;
   place-items: center;
   z-index: 60;
-  animation: veil-in 220ms var(--ease);
   padding: 28px;
+  animation: fade 200ms var(--ease);
 }
 
-@keyframes veil-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
-.panel {
+.sheet {
   width: 480px;
   max-width: 100%;
   max-height: 100%;
   overflow-y: auto;
-  background: var(--ink-1);
-  border: 1px solid var(--line-2);
+  background: var(--surface);
   border-radius: var(--r-lg);
-  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.7);
-  padding: 26px;
-  animation: arrive 420ms var(--spring) both;
+  box-shadow: 0 30px 80px -12px rgba(20, 20, 15, 0.3), 0 0 0 1px var(--hair-2);
+  padding: 28px;
+  animation: settle 420ms var(--spring) both;
 }
 
-.panel h2 {
-  font-family: var(--serif);
-  font-size: 25px;
-  font-weight: 400;
-  letter-spacing: -0.016em;
-  margin-bottom: 5px;
-}
+.sheet h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.026em; margin-bottom: 4px; }
+.sheet-sub { font-size: 13.5px; color: var(--ink-3); margin-bottom: 26px; letter-spacing: -0.009em; }
 
-.panel-sub { font-size: 13.5px; color: var(--bone-dim); margin-bottom: 26px; }
+.field { margin-bottom: 20px; }
+.field label { display: block; font-size: 12.5px; font-weight: 550; margin-bottom: 7px; color: var(--ink-2); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 7px; line-height: 1.5; }
 
-.row { margin-bottom: 20px; }
-.row label { display: block; font-size: 12.5px; font-weight: 550; margin-bottom: 8px; color: var(--bone-dim); }
-.hint { font-size: 12px; color: var(--bone-faint); margin-top: 7px; line-height: 1.5; }
-
-.input {
+.control {
   width: 100%;
-  height: 40px;
-  padding: 0 13px;
-  border-radius: var(--r-sm);
-  background: var(--ink);
-  border: 1px solid var(--line-2);
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: var(--surface);
+  border: 1px solid var(--hair-2);
   font-size: 13.5px;
-  transition: border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   user-select: text;
+  transition: border-color 180ms var(--ease), box-shadow 180ms var(--ease);
 }
 
-.input:focus { border-color: var(--flame-line); box-shadow: 0 0 0 3px var(--flame-soft); }
-select.input { cursor: pointer; appearance: none; }
+.control:focus { border-color: var(--hair-3); box-shadow: 0 0 0 3px rgba(20, 20, 15, 0.05); }
+select.control { cursor: pointer; appearance: none; }
 
-.toggle {
+.switch {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 15px 0;
-  border-top: 1px solid var(--line);
+  padding: 16px 0;
+  border-top: 1px solid var(--hair);
   cursor: pointer;
 }
 
-.toggle-copy { font-size: 13.5px; }
-.toggle-copy small { display: block; color: var(--bone-faint); font-size: 12px; margin-top: 3px; line-height: 1.45; }
+.switch-copy { font-size: 13.5px; }
+.switch-copy small { display: block; color: var(--ink-3); font-size: 12px; margin-top: 3px; line-height: 1.45; }
 
-.rail {
+.track {
   width: 42px;
-  height: 24px;
+  height: 25px;
   border-radius: 99px;
-  background: var(--ink-3);
-  border: 1px solid var(--line-2);
+  background: var(--sunken);
+  border: 1px solid var(--hair-2);
   position: relative;
   flex: none;
-  transition: background 220ms var(--ease), border-color 220ms var(--ease);
+  transition: background 240ms var(--ease), border-color 240ms var(--ease);
 }
 
-.rail[data-on='true'] { background: var(--flame); border-color: var(--flame); }
+.track[data-on='true'] { background: var(--deep); border-color: var(--deep); }
 
-.nub {
+.knob {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
-  background: var(--bone);
-  transition: transform 260ms var(--spring);
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(20, 20, 15, 0.2);
+  transition: transform 280ms var(--spring);
 }
 
-.rail[data-on='true'] .nub { transform: translateX(18px); }
+.track[data-on='true'] .knob { transform: translateX(17px); }
 
-.chip {
+.tag {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
-  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
   padding: 3px 8px;
-  border-radius: 5px;
-  background: var(--leaf-soft);
-  color: var(--leaf);
+  border-radius: 6px;
+  background: var(--sunken);
+  color: var(--ink-2);
 }
 
-.chip[data-tone='warn'] { background: var(--flame-soft); color: var(--flame); }
+/* ===========================================================================
+   Dark — the same design with the paper turned down. Opt-in rather than
+   inherited from the OS: this is a light interface by design, and following
+   the system would silently hand most people a different product. Still
+   achromatic either way.
+   =========================================================================== */
 
-kbd {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: var(--ink-3);
-  border: 1px solid var(--line-2);
-  color: var(--bone-faint);
-}
+:root[data-theme='dark'] {
+  --paper: #0e0e0c;
+  --surface: #171715;
+  --raised: #1e1e1b;
+  --sunken: #262622;
+
+  --ink: #f4f3ef;
+  --ink-2: #b6b5ae;
+  --ink-3: #85847d;
+  --ink-4: #5c5b55;
+
+  --hair: rgba(244, 243, 239, 0.09);
+  --hair-2: rgba(244, 243, 239, 0.15);
+  --hair-3: rgba(244, 243, 239, 0.26);
+
+  /* Inversion flips too: on dark paper, the attention surface is light. */
+  --deep: #f4f3ef;
+  --deep-2: #e6e5e0;
+  --on-deep: #14140f;}
+
+:root[data-theme='dark'] .evidence { background: rgba(20, 20, 15, 0.07); }
+:root[data-theme='dark'] .pointer::before { border-color: #14140f; }

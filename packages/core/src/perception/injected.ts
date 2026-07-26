@@ -542,6 +542,42 @@ export const PERCEPTION_SCRIPT = `
     return { ok: false, error: 'no option matched "' + wanted + '"', options: available };
   };
 
+  /**
+   * Draw attention to an element, for "show me where this came from".
+   * Deliberately an overlay rather than a style change on the element itself,
+   * so nothing about the page's own layout or classes is disturbed.
+   */
+  OP.flash = function (ref) {
+    var el = OP.el(ref);
+    if (!el || !el.isConnected) return { ok: false, error: 'that element is no longer on the page' };
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+
+    var r = el.getBoundingClientRect();
+    var box = document.createElement('div');
+    box.setAttribute('data-op-flash', '1');
+    box.style.cssText = [
+      'position:fixed',
+      'left:' + (r.left - 4) + 'px',
+      'top:' + (r.top - 4) + 'px',
+      'width:' + (r.width + 8) + 'px',
+      'height:' + (r.height + 8) + 'px',
+      'border:2px solid #111',
+      'border-radius:6px',
+      'box-shadow:0 0 0 9999px rgba(0,0,0,0.18)',
+      'pointer-events:none',
+      'z-index:2147483647',
+      'transition:opacity 260ms ease',
+      'opacity:0'
+    ].join(';');
+    document.body.appendChild(box);
+    requestAnimationFrame(function () { box.style.opacity = '1'; });
+    setTimeout(function () {
+      box.style.opacity = '0';
+      setTimeout(function () { if (box.parentNode) box.parentNode.removeChild(box); }, 300);
+    }, 1400);
+    return { ok: true };
+  };
+
   /** Read the current value of a non-sensitive field, for verification. */
   OP.readValue = function (ref) {
     var el = OP.el(ref);

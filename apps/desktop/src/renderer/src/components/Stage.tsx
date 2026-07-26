@@ -22,7 +22,7 @@ interface Props {
 export function Stage({ src, yours, pointer, viewRef }: Props): JSX.Element {
   return (
     <div className="stage" data-yours={yours}>
-      <div className="card">
+      <div className="paper">
         <webview
           ref={viewRef as never}
           src={src}
@@ -63,7 +63,7 @@ function PointerLayer({ pointer }: { pointer: PointerState | null }): JSX.Elemen
         <span className="ripple" key={r.id} style={{ left: r.x, top: r.y }} />
       ))}
       <div className="pointer" style={{ transform: `translate(${pointer.x}px, ${pointer.y}px)` }}>
-        {pointer.label && <span className="pointer-label">{pointer.label}</span>}
+        {pointer.label && <span className="pointer-tag">{pointer.label}</span>}
       </div>
     </div>
   );
