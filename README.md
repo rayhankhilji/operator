@@ -241,7 +241,7 @@ apps/desktop/             the browser
 ## Development
 
 ```bash
-npm test          # 64 tests over policy, perception, observation and the loop
+npm test          # 65 tests over policy, perception, observation and the loop
 npm run typecheck # strict, across all three tsconfigs
 npm run build
 ```
@@ -259,7 +259,7 @@ fail. A test that does not catch the bug it was written for is worse than none.
 
 - **The loop has not been run against a live model.** Everything below it is
   verified — perception is smoke-tested against real sites, refs resolve to real
-  click points, 64 tests cover the loop against scripted models — but the seam
+  click points, 65 tests cover the loop against scripted models — but the seam
   between a real API and the executor is untested, and every bug found in this
   codebase so far has been in a seam.
 - **Cross-origin iframes are opaque.** They appear as `iframe` nodes, but their

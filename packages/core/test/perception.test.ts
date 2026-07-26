@@ -29,6 +29,18 @@ describe('the injected perception script', () => {
   test('the capture expression honours the node cap', () => {
     assert.ok(captureExpression(42).includes('maxNodes: 42'));
   });
+
+  test('exposes every helper the driver calls by name', () => {
+    // These are invoked as strings from the executor and the reveal handler, so
+    // renaming one breaks the app at runtime with nothing failing to compile.
+    for (const method of ['capture', 'el', 'locate', 'prepareInput', 'selectOption', 'readValue', 'flash']) {
+      assert.match(
+        PERCEPTION_SCRIPT,
+        new RegExp(`OP\\.${method}\\s*=`),
+        `the injected script no longer defines ${method}`,
+      );
+    }
+  });
 });
 
 describe('systemPrompt', () => {
